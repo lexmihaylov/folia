@@ -4,11 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "release:standalone": "node scripts/release-standalone.js"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-solid-svg-icons": "^7.1.0",
+    "@fortawesome/react-fontawesome": "^3.1.1",
+    "@uiw/react-md-editor": "^4.0.11",
     "next": "16.1.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"

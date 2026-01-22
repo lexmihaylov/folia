@@ -1,26 +1,120 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafafa;
+  --foreground: #18181b;
+  --surface: #f4f4f5;
+  --surface-strong: #ededf0;
+  --muted: #71717a;
+  --accent: #4a7c59;
+  --border: #e4e4e7;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f0f11;
+    --foreground: #e4e4e7;
+    --surface: #18181b;
+    --surface-strong: #1f1f23;
+    --muted: #a1a1aa;
+    --accent: #3f6a4d;
+    --border: #27272a;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root.theme-light {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --surface: #f4f4f5;
+  --surface-strong: #ededf0;
+  --muted: #71717a;
+  --accent: #4a7c59;
+  --border: #e4e4e7;
+}
+
+:root.theme-dark {
+  --background: #0f0f11;
+  --foreground: #e4e4e7;
+  --surface: #18181b;
+  --surface-strong: #1f1f23;
+  --muted: #a1a1aa;
+  --accent: #3f6a4d;
+  --border: #27272a;
+}
+
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.app-shell {
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.ink {
+  font-family: var(--font-serif);
+}
+
+.wmde-markdown ul,
+.wmde-markdown ol,
+.wmde-markdown-var ul,
+.wmde-markdown-var ol,
+.w-md-editor-preview ul,
+.w-md-editor-preview ol {
+  list-style-position: outside;
+  padding-left: 1.5rem;
+}
+
+.wmde-markdown ul,
+.wmde-markdown-var ul,
+.w-md-editor-preview ul {
+  list-style-type: disc;
+}
+
+.wmde-markdown ol,
+.wmde-markdown-var ol,
+.w-md-editor-preview ol {
+  list-style-type: decimal;
 }
