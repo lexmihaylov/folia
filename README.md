@@ -112,3 +112,15 @@ Per-user data is stored in `.folia-<username>.json` at the library root, includi
 
 - Only `.md` files are rendered.
 - The library tree is read from disk; no content is bundled at build time.
+
+## Contributing
+
+Contributions are welcome. If you find a bug, have a feature idea, or want to
+improve the UX, please open an issue or PR.
+
+Guidelines:
+- Keep changes small and focused.
+- Follow the existing code style (TypeScript, 2-space indent).
+- Prefer clear, readable server components.
+- Include steps to reproduce bugs or describe expected behavior.
+- Mention any new env vars or routes you add.
