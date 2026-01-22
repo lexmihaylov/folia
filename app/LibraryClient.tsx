@@ -296,6 +296,7 @@ export default function LibraryClient({
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     getInitialTheme(initialTheme),
   );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -1303,6 +1304,14 @@ export default function LibraryClient({
       <main className="flex h-screen w-full flex-col gap-6 overflow-hidden px-[10px] py-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="rounded-md border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong lg:hidden"
+              aria-label="Open library"
+            >
+              ☰
+            </button>
             <span className="ink text-2xl font-semibold tracking-tight">
               Folia
             </span>
@@ -1328,8 +1337,31 @@ export default function LibraryClient({
         </header>
 
         <section className="grid flex-1 min-h-0 gap-6 lg:grid-cols-[400px_1fr]">
-          <aside className="panel flex h-full min-h-0 flex-col rounded-xl p-4">
-            <div className="flex items-start justify-between gap-3">
+          {isSidebarOpen ? (
+            <div
+              className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+              aria-hidden="true"
+            />
+          ) : null}
+          <aside
+            className={`panel fixed inset-y-0 left-0 z-40 flex h-full w-full max-w-[380px] flex-col rounded-none p-4 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:max-w-none lg:translate-x-0 lg:rounded-xl ${
+              isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 lg:hidden">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                Library
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="rounded-md border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+              >
+                Close
+              </button>
+            </div>
+            <div className="hidden items-start justify-between gap-3 lg:flex">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
                 Library root
               </p>
