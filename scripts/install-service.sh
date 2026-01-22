@@ -27,6 +27,7 @@ sudo mkdir -p "$ENV_DIR"
 sudo tee "$ENV_FILE" >/dev/null <<EOF
 NODE_ENV=production
 PORT=${PORT}
+FOLIA_COOKIE_SECURE=false
 EOF
 
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF

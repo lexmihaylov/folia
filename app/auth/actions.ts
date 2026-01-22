@@ -31,6 +31,9 @@ function validatePassword(password: string): string | null {
   return null;
 }
 
+const SESSION_COOKIE_SECURE =
+  process.env.FOLIA_COOKIE_SECURE?.toLowerCase() === "true";
+
 async function setSessionCookie(value: string) {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, value, {
@@ -38,7 +41,7 @@ async function setSessionCookie(value: string) {
     sameSite: "lax",
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
-    secure: process.env.NODE_ENV === "production",
+    secure: SESSION_COOKIE_SECURE,
   });
 }
 
@@ -92,7 +95,7 @@ export async function logoutAction() {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
-    secure: process.env.NODE_ENV === "production",
+    secure: SESSION_COOKIE_SECURE,
   });
 }
 

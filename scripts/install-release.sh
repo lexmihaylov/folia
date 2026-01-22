@@ -62,6 +62,7 @@ mkdir -p "$ENV_DIR"
 cat >"$ENV_FILE" <<EOF
 NODE_ENV=production
 PORT=3000
+FOLIA_COOKIE_SECURE=false
 EOF
 
 cat >/etc/systemd/system/${SERVICE}.service <<EOF
