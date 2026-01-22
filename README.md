@@ -62,6 +62,12 @@ On the target machine:
 sudo ./scripts/install-release.sh
 ```
 
+Or one-line install via curl:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lexmihaylov/folia/main/scripts/install-release.sh | sudo bash
+```
+
 The script downloads the latest GitHub release, prompts for the library root,
 installs to `/opt/folia`, and registers the `folia` systemd service.
 
