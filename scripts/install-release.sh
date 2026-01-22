@@ -7,6 +7,8 @@ INSTALL_DIR="/opt/folia"
 ASSET_PREFIX="folia-kb-standalone-"
 ENV_DIR="/etc/folia"
 ENV_FILE="${ENV_DIR}/folia.env"
+SERVICE_USER="${SUDO_USER:-root}"
+SERVICE_GROUP="${SERVICE_USER}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Please run as root: sudo $0"
@@ -46,6 +48,7 @@ echo "Installing to ${INSTALL_DIR}..."
 mkdir -p "$INSTALL_DIR"
 rm -rf "${INSTALL_DIR:?}"/*
 cp -R "$TMP_DIR/release/." "$INSTALL_DIR/"
+chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "$INSTALL_DIR"
 
 if [[ ! -f "${INSTALL_DIR}/folia.config.json" ]]; then
   DEFAULT_ROOT="/data/folia"
@@ -72,7 +75,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=${SUDO_USER:-root}
+User=${SERVICE_USER}
 WorkingDirectory=${INSTALL_DIR}
 EnvironmentFile=${ENV_FILE}
 ExecStart=$(command -v node) ${INSTALL_DIR}/server.js

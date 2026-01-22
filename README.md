@@ -71,6 +71,14 @@ curl -fsSL https://raw.githubusercontent.com/lexmihaylov/folia/main/scripts/inst
 The script downloads the latest GitHub release, prompts for the library root,
 installs to `/opt/folia`, and registers the `folia` systemd service.
 
+The installer also writes `/etc/folia/folia.env` for systemd, including:
+
+```bash
+NODE_ENV=production
+PORT=3000
+FOLIA_COOKIE_SECURE=false
+```
+
 ### Update install
 
 ```bash

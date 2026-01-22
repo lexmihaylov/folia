@@ -5,6 +5,8 @@ REPO="lexmihaylov/folia"
 SERVICE="folia"
 INSTALL_DIR="/opt/folia"
 ASSET_PREFIX="folia-kb-standalone-"
+SERVICE_USER="${SUDO_USER:-root}"
+SERVICE_GROUP="${SERVICE_USER}"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -43,6 +45,7 @@ fi
 echo "Installing release to ${INSTALL_DIR}..."
 sudo rm -rf "${INSTALL_DIR:?}"/*
 sudo cp -R "$TMP_DIR/release/." "$INSTALL_DIR/"
+sudo chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "$INSTALL_DIR"
 
 if [[ -f "$TMP_DIR/folia.config.json" ]]; then
   sudo cp "$TMP_DIR/folia.config.json" "${INSTALL_DIR}/folia.config.json"
