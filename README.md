@@ -44,6 +44,42 @@ npm run dev
 
 4. Open `http://localhost:3000`.
 
+## Standalone Release (Raspberry Pi / Server)
+
+Create a versioned release bundle:
+
+```bash
+npm run release:standalone
+```
+
+This outputs `dist/folia-kb-standalone-<version>.tar.gz`.
+
+### Initial install (recommended)
+
+On the target machine:
+
+```bash
+sudo ./scripts/install-release.sh
+```
+
+The script downloads the latest GitHub release, prompts for the library root,
+installs to `/opt/folia`, and registers the `folia` systemd service.
+
+### Update install
+
+```bash
+./scripts/update-release.sh
+```
+
+This pulls the latest release and preserves `folia.config.json` and
+`credentials.json`.
+
+### Manual run from a release bundle
+
+```bash
+node /opt/folia/server.js
+```
+
 ## Authentication
 
 On first run, Folia redirects to `/setup` to create a username and password.

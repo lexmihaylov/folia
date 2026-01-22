@@ -42,6 +42,14 @@ async function main() {
     path.join(rootDir, "scripts", "install-service.sh"),
     path.join(bundleDir, "scripts", "install-service.sh"),
   );
+  await copy(
+    path.join(rootDir, "scripts", "update-release.sh"),
+    path.join(bundleDir, "scripts", "update-release.sh"),
+  );
+  await copy(
+    path.join(rootDir, "scripts", "install-release.sh"),
+    path.join(bundleDir, "scripts", "install-release.sh"),
+  );
 
   if (!hasTar()) {
     throw new Error("tar not found in PATH. Install tar to create the release archive.");
