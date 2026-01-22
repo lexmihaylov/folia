@@ -25,10 +25,13 @@ async function copy(src, dest) {
   await fs.cp(src, dest, { recursive: true });
 }
 
-async function main() {
-  run("npm", ["run", "build"], { cwd: rootDir });
+async function removeIfExists(targetPath) {
+  await fs.rm(targetPath, { force: true });
+}
 
+async function main() {
   await fs.rm(distDir, { recursive: true, force: true });
+  run("npm", ["run", "build"], { cwd: rootDir });
   await fs.mkdir(path.join(bundleDir, ".next"), { recursive: true });
   await fs.mkdir(path.join(bundleDir, "scripts"), { recursive: true });
 
@@ -51,6 +54,9 @@ async function main() {
     path.join(bundleDir, "scripts", "install-release.sh"),
   );
 
+  await removeIfExists(path.join(bundleDir, "knowledgebase"));
+  await removeIfExists(path.join(bundleDir, "credentials.json"));
+
   if (!hasTar()) {
     throw new Error("tar not found in PATH. Install tar to create the release archive.");
   }
@@ -60,6 +66,7 @@ async function main() {
   const archive = path.join(distDir, `folia-kb-standalone-${version}.tar.gz`);
 
   run("tar", ["-czf", archive, "-C", bundleDir, "."]);
+  await fs.rm(bundleDir, { recursive: true, force: true });
   console.log(`Created ${archive}`);
 }
 
