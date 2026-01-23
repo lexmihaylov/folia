@@ -1,4 +1,4 @@
-name: Release standalone tar.gz
+name: Release package tar.gz
 
 on:
   push:
@@ -41,8 +41,8 @@ jobs:
             exit 1
           fi
 
-      - name: Build + package standalone
-        run: npm run release:standalone
+      - name: Build + package archive
+        run: npm run release:package
 
       - name: Verify archive exists
         shell: bash

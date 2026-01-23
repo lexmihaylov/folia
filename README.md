@@ -49,7 +49,7 @@ npm run dev
 Create a versioned release bundle:
 
 ```bash
-npm run release:standalone
+npm run release:package
 ```
 
 This outputs `dist/folia-kb-standalone-<version>.tar.gz`.
