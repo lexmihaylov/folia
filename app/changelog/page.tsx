@@ -8,6 +8,55 @@ export const metadata: Metadata = {
   description: "Release notes and updates for Folia.",
 };
 
+type ReleaseInfo = {
+  tagName: string;
+  url: string;
+};
+
+const DEFAULT_GITHUB_REPO = "lexmihaylov/folia";
+
+const parseVersion = (value: string) =>
+  value
+    .replace(/^v/i, "")
+    .split(".")
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => Number.isFinite(part));
+
+const isNewerVersion = (current: string, latest: string) => {
+  const currentParts = parseVersion(current);
+  const latestParts = parseVersion(latest);
+  const maxLength = Math.max(currentParts.length, latestParts.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const currentValue = currentParts[index] ?? 0;
+    const latestValue = latestParts[index] ?? 0;
+    if (latestValue > currentValue) return true;
+    if (latestValue < currentValue) return false;
+  }
+  return false;
+};
+
+const getLatestRelease = async (): Promise<ReleaseInfo | null> => {
+  const repo = process.env.FOLIA_GITHUB_REPO ?? DEFAULT_GITHUB_REPO;
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/releases/latest`,
+      {
+        next: { revalidate: 3600 },
+        headers: { "User-Agent": "Folia" },
+      },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      tag_name?: string;
+      html_url?: string;
+    };
+    if (!data.tag_name || !data.html_url) return null;
+    return { tagName: data.tag_name, url: data.html_url };
+  } catch {
+    return null;
+  }
+};
+
 export default async function ChangelogPage() {
   await requireAuth();
 
@@ -15,6 +64,9 @@ export default async function ChangelogPage() {
     (a, b) => Date.parse(b.date) - Date.parse(a.date),
   );
   const latest = entries[0];
+  const release = await getLatestRelease();
+  const isUpdateAvailable =
+    latest && release ? isNewerVersion(latest.version, release.tagName) : false;
 
   return (
     <div className="app-shell text-[15px] text-foreground sm:text-base">
@@ -107,6 +159,22 @@ export default async function ChangelogPage() {
                 <p className="mt-1 text-xs text-muted">
                   {latest?.date}
                 </p>
+                {isUpdateAvailable && release ? (
+                  <div className="mt-3 space-y-2 text-xs text-foreground">
+                    <p>
+                      Newer version available:{" "}
+                      <a href={release.url} className="underline">
+                        {release.tagName}
+                      </a>
+                    </p>
+                    <p className="text-muted">
+                      Update by running:{" "}
+                      <span className="font-mono">
+                        sudo ./scripts/update-release.sh
+                      </span>
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

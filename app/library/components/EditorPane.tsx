@@ -75,7 +75,7 @@ export default function EditorPane({
           value={content}
           onChange={(next) => onContentChange(next ?? "")}
           data-color-mode={theme}
-          preview={isEditing ? "live" : "preview"}
+          preview={isEditing ? "edit" : "preview"}
           hideToolbar={!isEditing}
           height="100%"
           textareaProps={{

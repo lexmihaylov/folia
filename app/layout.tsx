@@ -4,6 +4,8 @@ import { config } from "@fortawesome/fontawesome-svg-core";
 import { Fraunces, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { getAuthenticatedUsername } from "@/lib/auth/guard";
 import { readUserData } from "@/lib/auth/user-data";
+import "@uiw/react-md-editor/markdown-editor.css";
+import "@uiw/react-markdown-preview/markdown.css";
 import "./globals.css";
 
 config.autoAddCss = false;

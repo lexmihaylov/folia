@@ -118,3 +118,16 @@
 .w-md-editor-preview ol {
   list-style-type: decimal;
 }
+
+@media (max-width: 640px) {
+
+  .w-md-editor .wmde-markdown,
+  .w-md-editor .wmde-markdown-var,
+  .w-md-editor .w-md-editor-preview {
+    font-size: 0.7rem;
+  }
+
+  .w-md-editor .w-md-editor-text textarea {
+    font-size: 0.7rem;
+  }
+}

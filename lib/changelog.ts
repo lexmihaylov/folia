@@ -15,13 +15,14 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "0.1.5",
     date: "2026-01-23",
-    summary: "Refactor library client into smaller components.",
+    summary: "Library experience polish.",
     sections: [
       {
         title: "Improved",
         items: [
-          "Split LibraryClient into focused components, hooks, and tree utilities.",
-          "Centralized shared tree types for sidebar and tree rendering.",
+          "Refactoring for better maintainability.",
+          "Show the editor-only pane when entering edit mode.",
+          "Tuned mobile editor/preview font sizes for readability.",
         ],
       },
     ],
