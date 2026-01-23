@@ -297,6 +297,7 @@ export default function LibraryClient({
     getInitialTheme(initialTheme),
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -304,6 +305,7 @@ export default function LibraryClient({
   useEffect(() => {
     const trimmed = submittedQuery.trim();
     if (!trimmed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchMatches([]);
       setIsSearching(false);
       return;
@@ -437,21 +439,21 @@ export default function LibraryClient({
           const nextNode: TreeNode =
             item.type === "folder"
               ? cloneNode(
-                  findNode(prev, item.path) ?? {
-                    path: item.path,
-                    name: item.name,
-                    type: "folder",
-                    children: [],
-                  },
-                  item.path,
-                  result.path,
-                  result.name,
-                )
+                findNode(prev, item.path) ?? {
+                  path: item.path,
+                  name: item.name,
+                  type: "folder",
+                  children: [],
+                },
+                item.path,
+                result.path,
+                result.name,
+              )
               : {
-                  path: result.path,
-                  name: result.name,
-                  type: "file",
-                };
+                path: result.path,
+                name: result.name,
+                type: "file",
+              };
 
           const withInsert = insertNode(prev, targetPath, nextNode);
           if (item.mode === "cut") {
@@ -844,11 +846,10 @@ export default function LibraryClient({
                 </div>
               ) : (
                 <div
-                  className={`flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left text-sm text-foreground hover:bg-surface-strong ${
-                    selectedFile?.path === child.path
-                      ? "border border-accent bg-surface-strong"
-                      : ""
-                  } ${isCutting ? "opacity-50" : ""}`}
+                  className={`flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left text-sm text-foreground hover:bg-surface-strong ${selectedFile?.path === child.path
+                    ? "border border-accent bg-surface-strong"
+                    : ""
+                    } ${isCutting ? "opacity-50" : ""}`}
                   style={{ paddingLeft: (depth + 1) * 12 }}
                 >
                   <button
@@ -1280,14 +1281,14 @@ export default function LibraryClient({
           <button
             type="button"
             onClick={() => startDraft("folder", "")}
-            className="rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong"
+            className={`${isSidebarOpen ? "inline-flex" : "hidden"} rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong lg:inline-flex`}
           >
             Add folder
           </button>
           <button
             type="button"
             onClick={() => startDraft("file", "")}
-            className="rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong"
+            className={`${isSidebarOpen ? "inline-flex" : "hidden"} rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong lg:inline-flex`}
           >
             Add document
           </button>
@@ -1301,8 +1302,8 @@ export default function LibraryClient({
 
   return (
     <div className="app-shell text-[15px] text-foreground sm:text-base">
-      <main className="flex h-screen w-full flex-col gap-6 overflow-hidden px-[10px] py-6">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+      <main className="flex h-screen w-full flex-col gap-4 overflow-hidden px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6">
+        <header className="flex flex-wrap items-center justify-between gap-4 px-3 sm:px-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -1320,23 +1321,59 @@ export default function LibraryClient({
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <a
-              href="/changelog"
-              className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-            >
-              About
-            </a>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-            >
-              {theme === "dark" ? "Light mode" : "Dark mode"}
-            </button>
+            <div className="relative sm:hidden">
+              <button
+                type="button"
+                onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
+                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+                aria-expanded={isHeaderMenuOpen}
+                aria-haspopup="menu"
+              >
+                Actions
+              </button>
+              {isHeaderMenuOpen ? (
+                <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-border bg-surface p-2 shadow-lg">
+                  { /* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+                  <a
+                    href="/changelog"
+                    className="block rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+                    onClick={() => setIsHeaderMenuOpen(false)}
+                  >
+                    About
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleTheme();
+                      setIsHeaderMenuOpen(false);
+                    }}
+                    className="mt-1 w-full rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+                  >
+                    {theme === "dark" ? "Light mode" : "Dark mode"}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="hidden items-center gap-3 sm:flex">
+              { /* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a
+                href="/changelog"
+                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+              >
+                About
+              </a>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+              >
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </button>
+            </div>
           </div>
         </header>
 
-        <section className="grid flex-1 min-h-0 gap-6 lg:grid-cols-[400px_1fr]">
+        <section className="grid flex-1 min-h-0 gap-4 sm:gap-6 lg:grid-cols-[400px_1fr]">
           {isSidebarOpen ? (
             <div
               className="fixed inset-0 z-30 bg-black/30 lg:hidden"
@@ -1345,9 +1382,8 @@ export default function LibraryClient({
             />
           ) : null}
           <aside
-            className={`panel fixed inset-y-0 left-0 z-40 flex h-full w-full max-w-[380px] flex-col rounded-none p-4 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:max-w-none lg:translate-x-0 lg:rounded-xl ${
-              isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
+            className={`panel fixed inset-y-0 left-0 z-40 flex h-full w-full max-w-[380px] flex-col rounded-none p-4 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:max-w-none lg:translate-x-0 lg:rounded-xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+              }`}
           >
             <div className="flex items-center justify-between gap-3 lg:hidden">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
@@ -1414,15 +1450,15 @@ export default function LibraryClient({
             </div>
           </aside>
 
-          <section className="panel flex h-full min-h-0 flex-col overflow-hidden rounded-xl p-5">
+          <section className="panel flex h-full min-h-0 flex-col overflow-hidden rounded-md p-2 sm:rounded-xl sm:p-5">
             {selectedFile ? (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex min-w-0 flex-col gap-1">
-                    <span className="truncate text-sm font-semibold text-foreground">
+                    <span className="truncate text-sm font-semibold text-foreground hidden sm:flex">
                       {selectedFile.name}
                     </span>
-                    <div className="flex flex-wrap gap-3 text-[11px] text-muted">
+                    <div className="flex flex-wrap gap-3 text-[11px] text-muted hidden sm:flex">
                       <span>Created {formatTimestamp(fileMeta?.createdAt)}</span>
                       <span>Updated {formatTimestamp(fileMeta?.updatedAt)}</span>
                     </div>
@@ -1450,7 +1486,7 @@ export default function LibraryClient({
                     ) : null}
                   </div>
                 </div>
-                <div className="mt-6 flex-1 min-h-0 overflow-hidden bg-surface">
+                <div className="mt-4 flex-1 min-h-0 overflow-hidden bg-surface sm:mt-6">
                   <MDEditor
                     value={content}
                     onChange={(next) => setContent(next ?? "")}

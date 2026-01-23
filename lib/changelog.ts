@@ -13,6 +13,21 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.1.4",
+    date: "2026-01-23",
+    summary: "Patch release with responsive layout refinements.",
+    sections: [
+      {
+        title: "Improved",
+        items: [
+          "Added a mobile header actions menu for About and theme toggle.",
+          "Adjusted spacing and panel padding for smaller screens.",
+          "Only show add actions in the sidebar when it is visible.",
+        ],
+      },
+    ],
+  },
+  {
     version: "0.1.3",
     date: "2026-01-23",
     summary: "Patch release with update script fixes.",
