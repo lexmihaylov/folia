@@ -47,6 +47,15 @@ sudo rm -rf "${INSTALL_DIR:?}"/*
 sudo cp -R "$TMP_DIR/release/." "$INSTALL_DIR/"
 sudo chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "$INSTALL_DIR"
 
+if [[ -f "$TMP_DIR/folia.config.json" ]]; then
+  sudo cp "$TMP_DIR/folia.config.json" "${INSTALL_DIR}/folia.config.json"
+  sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}/folia.config.json"
+fi
+if [[ -f "$TMP_DIR/credentials.json" ]]; then
+  sudo cp "$TMP_DIR/credentials.json" "${INSTALL_DIR}/credentials.json"
+  sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}/credentials.json"
+fi
+
 echo "Restarting service ${SERVICE}..."
 sudo systemctl restart "${SERVICE}"
 

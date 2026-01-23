@@ -13,7 +13,18 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "0.1.1",
+    version: "0.1.3",
+    date: "2026-01-23",
+    summary: "Patch release with update script fixes.",
+    sections: [
+      {
+        title: "Improved",
+        items: ["Ensure update script preserves credentials and config files."],
+      },
+    ],
+  },
+  {
+    version: "0.1.2",
     date: "2026-01-23",
     summary: "Patch release with packaging updates.",
     sections: [

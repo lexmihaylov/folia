@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   description: "A filesystem-first knowledge base for living notes and docs.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
