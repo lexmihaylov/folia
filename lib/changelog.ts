@@ -13,6 +13,20 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.1.5",
+    date: "2026-01-23",
+    summary: "Refactor library client into smaller components.",
+    sections: [
+      {
+        title: "Improved",
+        items: [
+          "Split LibraryClient into focused components, hooks, and tree utilities.",
+          "Centralized shared tree types for sidebar and tree rendering.",
+        ],
+      },
+    ],
+  },
+  {
     version: "0.1.4",
     date: "2026-01-23",
     summary: "Patch release with responsive layout refinements.",

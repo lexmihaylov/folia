@@ -1,34 +1,9 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-  type ReactElement,
-} from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import MDEditor from "@uiw/react-md-editor";
 import "@uiw/react-md-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCheck,
-  faChevronDown,
-  faChevronRight,
-  faCopy,
-  faEllipsis,
-  faFileLines,
-  faFolder,
-  faMagnifyingGlass,
-  faPaste,
-  faPlus,
-  faPen,
-  faScissors,
-  faTrash,
-  faXmark,
-} from "@fortawesome/free-solid-svg-icons";
 
 import type { LibrarySnapshot, TreeNode } from "@/lib/fs/library";
 import {
@@ -44,60 +19,32 @@ import {
   renameFolderInline,
   renameFileInline,
   savePageContent,
-  searchPages,
 } from "@/app/library/actions";
+import LibraryHeader from "@/app/library/components/LibraryHeader";
+import LibraryLanding from "@/app/library/components/LibraryLanding";
+import EditorPane from "@/app/library/components/EditorPane";
+import LibrarySidebar from "@/app/library/components/LibrarySidebar";
+import { useCollapsedFolders } from "@/app/library/hooks/useCollapsedFolders";
+import { useSearch } from "@/app/library/hooks/useSearch";
+import { useThemePreference } from "@/app/library/hooks/useThemePreference";
+import type {
+  ClipboardState,
+  DraftState,
+  FileMeta,
+  RenameState,
+  SelectedFile,
+} from "@/app/library/types";
 import {
-  updateCollapsedStateAction,
-  updateThemePreferenceAction,
-} from "@/app/auth/actions";
+  cloneNode,
+  filterTree,
+  findNode,
+  insertNode,
+  removeNode,
+  renameFileNode,
+  renameNode,
+} from "@/app/library/utils/tree";
 
-type DraftState = {
-  parentPath: string;
-  type: "folder" | "file";
-  name: string;
-};
-
-type RenameState = {
-  path: string;
-  name: string;
-  type: "folder" | "file";
-};
-
-type SelectedFile = {
-  path: string;
-  name: string;
-};
-
-type FileMeta = {
-  createdAt: number | null;
-  updatedAt: number | null;
-};
-
-const getInitialTheme = (
-  initialTheme?: "light" | "dark" | null,
-): "light" | "dark" => {
-  if (initialTheme === "light" || initialTheme === "dark") {
-    return initialTheme;
-  }
-  if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem("folia-theme");
-  if (stored === "light" || stored === "dark") {
-    return stored;
-  }
-  const prefersDark =
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return prefersDark ? "dark" : "light";
-};
-
-type ClipboardState = {
-  path: string;
-  name: string;
-  type: "folder" | "file";
-  mode: "copy" | "cut";
-};
-
-type LibraryClientProps = {
+export type LibraryClientProps = {
   snapshot: LibrarySnapshot;
   initialSelectedFile?: SelectedFile | null;
   initialContent?: string;
@@ -105,159 +52,6 @@ type LibraryClientProps = {
   initialCollapsed?: string[];
   initialTheme?: "light" | "dark" | null;
 };
-
-function insertNode(
-  node: TreeNode,
-  parentPath: string,
-  child: TreeNode,
-): TreeNode {
-  if (node.path === parentPath && node.children) {
-    const nextChildren = [...node.children, child];
-    nextChildren.sort((a, b) => {
-      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-    return { ...node, children: nextChildren };
-  }
-
-  if (!node.children) return node;
-  return {
-    ...node,
-    children: node.children.map((childNode) =>
-      childNode.type === "folder"
-        ? insertNode(childNode, parentPath, child)
-        : childNode,
-    ),
-  };
-}
-
-function renameNode(
-  node: TreeNode,
-  oldPath: string,
-  newPath: string,
-  newName: string,
-): TreeNode {
-  if (node.path === oldPath) {
-    return renameSubtree(node, oldPath, newPath, newName);
-  }
-  if (!node.children) return node;
-  return {
-    ...node,
-    children: node.children.map((child) =>
-      child.type === "folder"
-        ? renameNode(child, oldPath, newPath, newName)
-        : child,
-    ),
-  };
-}
-
-function renameSubtree(
-  node: TreeNode,
-  oldPath: string,
-  newPath: string,
-  newName: string,
-): TreeNode {
-  const updatedNode: TreeNode = {
-    ...node,
-    name: newName,
-    path: newPath,
-  };
-  if (!node.children) return updatedNode;
-  return {
-    ...updatedNode,
-    children: node.children.map((child) => {
-      const nextPath = child.path.startsWith(oldPath + "/")
-        ? newPath + child.path.slice(oldPath.length)
-        : child.path;
-      if (child.type === "folder") {
-        return renameSubtree(child, child.path, nextPath, child.name);
-      }
-      return { ...child, path: nextPath };
-    }),
-  };
-}
-
-function removeNode(node: TreeNode, targetPath: string): TreeNode {
-  if (!node.children) return node;
-  const nextChildren = node.children
-    .filter((child) => child.path !== targetPath)
-    .map((child) =>
-      child.type === "folder" ? removeNode(child, targetPath) : child,
-    );
-  return { ...node, children: nextChildren };
-}
-
-function renameFileNode(
-  node: TreeNode,
-  oldPath: string,
-  newPath: string,
-  newName: string,
-): TreeNode {
-  if (!node.children) return node;
-  return {
-    ...node,
-    children: node.children.map((child) => {
-      if (child.type === "file" && child.path === oldPath) {
-        return { ...child, path: newPath, name: newName };
-      }
-      if (child.type === "folder") {
-        return renameFileNode(child, oldPath, newPath, newName);
-      }
-      return child;
-    }),
-  };
-}
-
-function findNode(node: TreeNode, targetPath: string): TreeNode | null {
-  if (node.path === targetPath) return node;
-  if (!node.children) return null;
-  for (const child of node.children) {
-    if (child.path === targetPath) return child;
-    if (child.type === "folder") {
-      const found = findNode(child, targetPath);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-function cloneNode(
-  node: TreeNode,
-  oldPath: string,
-  newPath: string,
-  newName: string,
-): TreeNode {
-  if (node.type === "folder") {
-    return renameSubtree(node, oldPath, newPath, newName);
-  }
-  return { ...node, path: newPath, name: newName };
-}
-
-function filterTree(
-  node: TreeNode,
-  query: string,
-  contentMatches: Set<string>,
-): TreeNode | null {
-  if (!query) return node;
-  const needle = query.toLowerCase();
-  const isRoot = node.path === "";
-  const nameMatch = !isRoot && node.name.toLowerCase().includes(needle);
-
-  if (node.type === "file") {
-    return nameMatch || contentMatches.has(node.path) ? node : null;
-  }
-
-  const children = node.children ?? [];
-  const filteredChildren = children
-    .map((child) => filterTree(child, query, contentMatches))
-    .filter((child): child is TreeNode => Boolean(child));
-
-  if (nameMatch || filteredChildren.length > 0) {
-    return { ...node, children: filteredChildren };
-  }
-
-  return null;
-}
 
 export default function LibraryClient({
   snapshot,
@@ -278,71 +72,30 @@ export default function LibraryClient({
     type: "folder" | "file";
   } | null>(null);
   const [deleteError, setDeleteError] = useState("");
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardState | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchMatches, setSearchMatches] = useState<string[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
-    () => new Set(initialCollapsed),
-  );
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(
     initialSelectedFile,
   );
   const [fileMeta, setFileMeta] = useState<FileMeta | null>(initialMeta);
   const [content, setContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(() =>
-    getInitialTheme(initialTheme),
-  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState("");
 
+  const { theme, toggleTheme } = useThemePreference(initialTheme);
+  const { collapsedFolders, setCollapsedFolders } =
+    useCollapsedFolders(initialCollapsed);
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchMatches,
+    isSearching,
+    submittedQuery,
+    submitSearch,
+  } = useSearch();
+
   const rootMissing = snapshot.rootMissing;
-  useEffect(() => {
-    const trimmed = submittedQuery.trim();
-    if (!trimmed) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSearchMatches([]);
-      setIsSearching(false);
-      return;
-    }
-
-    let active = true;
-    setIsSearching(true);
-    (async () => {
-      const result = await searchPages(trimmed);
-      if (!active) return;
-      if (result.ok) {
-        setSearchMatches(result.matches);
-      } else {
-        setSearchMatches([]);
-      }
-      setIsSearching(false);
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [submittedQuery]);
-
-  const lastCollapsedRef = useRef<string>("");
-  const lastThemeRef = useRef<string>("");
-
-  useEffect(() => {
-    const serialized = JSON.stringify(Array.from(collapsedFolders));
-    if (serialized === lastCollapsedRef.current) return;
-    const timer = window.setTimeout(async () => {
-      lastCollapsedRef.current = serialized;
-      await updateCollapsedStateAction(Array.from(collapsedFolders));
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [collapsedFolders]);
 
   const filteredTree = useMemo(() => {
     const trimmed = submittedQuery.trim();
@@ -364,28 +117,6 @@ export default function LibraryClient({
       .map((segment) => encodeURIComponent(segment))
       .join("/");
     return `/${encoded}`;
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("folia-theme", theme);
-    document.documentElement.classList.remove("theme-light", "theme-dark");
-    document.documentElement.classList.add(`theme-${theme}`);
-    if (theme === lastThemeRef.current) return;
-    lastThemeRef.current = theme;
-    updateThemePreferenceAction(theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === "dark" ? "light" : "dark";
-      return next;
-    });
-  };
-
-  const startClipboard = (mode: "copy" | "cut", node: TreeNode) => {
-    setClipboard({ path: node.path, name: node.name, type: node.type, mode });
-    setOpenMenu(null);
   };
 
   const toggleFolder = (path: string) => {
@@ -410,10 +141,13 @@ export default function LibraryClient({
     });
   };
 
+  const startClipboard = (mode: "copy" | "cut", node: TreeNode) => {
+    setClipboard({ path: node.path, name: node.name, type: node.type, mode });
+  };
+
   const pasteInto = async (targetPath: string) => {
     if (!clipboard) return;
     ensureExpanded(targetPath);
-    setOpenMenu(null);
     const item = clipboard;
     const targetIsInsideCutFolder =
       item.type === "folder" &&
@@ -536,7 +270,6 @@ export default function LibraryClient({
     setRenameError("");
     setDeleteTarget(null);
     setDeleteError("");
-    setOpenMenu(null);
   };
 
   const startRename = (path: string, name: string, type: "folder" | "file") => {
@@ -546,7 +279,6 @@ export default function LibraryClient({
     setDraftError("");
     setDeleteTarget(null);
     setDeleteError("");
-    setOpenMenu(null);
   };
 
   const startDelete = (path: string, type: "folder" | "file") => {
@@ -556,7 +288,6 @@ export default function LibraryClient({
     setDraftError("");
     setRenameState(null);
     setRenameError("");
-    setOpenMenu(null);
   };
 
   const confirmDraft = () => {
@@ -751,757 +482,83 @@ export default function LibraryClient({
     }
   }, [deleteError]);
 
-  const renderChildren = (node: TreeNode, depth: number): ReactElement => {
-    const isRoot = node.path === "";
-    const children = node.children ?? [];
-
-    return (
-      <div className={depth === 0 ? "mt-4" : "mt-1"}>
-        {children.map((child) => {
-          const isFolder = child.type === "folder";
-          const isRenaming = renameState?.path === child.path;
-          const isDeleting = deleteTarget?.path === child.path;
-          const isCutting =
-            clipboard?.mode === "cut" && clipboard.path === child.path;
-          const isCollapsed =
-            isFolder && !shouldExpandAll && collapsedFolders.has(child.path);
-          return (
-            <div key={child.path} className="mt-1">
-              {isRenaming ? (
-                <div
-                  className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1"
-                  style={{ paddingLeft: (depth + 1) * 12 }}
-                >
-                  <span className="text-xs text-muted">
-                    <FontAwesomeIcon
-                      icon={isFolder ? faFolder : faFileLines}
-                    />
-                  </span>
-                  <input
-                    autoFocus
-                    value={renameState.name}
-                    onChange={(event) =>
-                      setRenameState((prev) =>
-                        prev ? { ...prev, name: event.target.value } : prev,
-                      )
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        confirmRename();
-                      }
-                    }}
-                    placeholder="rename-item"
-                    className="flex min-w-0 flex-1 bg-transparent text-sm text-foreground"
-                    disabled={isPending}
-                  />
-                  <button
-                    type="button"
-                    onClick={confirmRename}
-                    className="text-xs text-emerald-600 hover:text-emerald-500"
-                    disabled={isPending}
-                  >
-                    <FontAwesomeIcon icon={faCheck} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelRename}
-                    className="text-xs text-rose-500 hover:text-rose-400"
-                    disabled={isPending}
-                  >
-                    <FontAwesomeIcon icon={faXmark} />
-                  </button>
-                </div>
-              ) : isDeleting ? (
-                <div
-                  className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1 text-xs text-muted"
-                  style={{ paddingLeft: (depth + 1) * 12 }}
-                >
-                  <span className="text-xs text-muted">
-                    <FontAwesomeIcon
-                      icon={isFolder ? faFolder : faFileLines}
-                    />
-                  </span>
-                  <span className="flex-1">
-                    {deleteTarget.type === "folder"
-                      ? "Delete folder and contents?"
-                      : "Delete file?"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={confirmDelete}
-                    className="text-xs text-emerald-600 hover:text-emerald-500"
-                    disabled={isPending}
-                  >
-                    <FontAwesomeIcon icon={faCheck} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelDelete}
-                    className="text-xs text-rose-500 hover:text-rose-400"
-                    disabled={isPending}
-                  >
-                    <FontAwesomeIcon icon={faXmark} />
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className={`flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left text-sm text-foreground hover:bg-surface-strong ${selectedFile?.path === child.path
-                    ? "border border-accent bg-surface-strong"
-                    : ""
-                    } ${isCutting ? "opacity-50" : ""}`}
-                  style={{ paddingLeft: (depth + 1) * 12 }}
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      isFolder
-                        ? toggleFolder(child.path)
-                        : selectFile(child.path, child.name)
-                    }
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                  >
-                    {isFolder ? (
-                      <span className="text-[10px] text-muted">
-                        <FontAwesomeIcon
-                          icon={isCollapsed ? faChevronRight : faChevronDown}
-                        />
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-muted opacity-50">
-                        <FontAwesomeIcon icon={faChevronRight} />
-                      </span>
-                    )}
-                    <span className="text-xs text-muted">
-                      <FontAwesomeIcon
-                        icon={isFolder ? faFolder : faFileLines}
-                      />
-                    </span>
-                    <span
-                      className={`${isFolder ? "font-semibold" : ""} break-words`}
-                    >
-                      {child.name}
-                    </span>
-                  </button>
-                  <div className="relative ml-auto">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenMenu((prev) =>
-                          prev === child.path ? null : child.path,
-                        )
-                      }
-                      className="rounded-lg border border-border px-2 py-0.5 text-[10px] text-muted transition hover:border-transparent hover:bg-surface-strong"
-                      aria-label="Open actions"
-                      title="Actions"
-                    >
-                      <FontAwesomeIcon icon={faEllipsis} />
-                    </button>
-                    {openMenu === child.path ? (
-                      <div className="absolute right-0 top-6 z-10 w-40 rounded-xl border border-border bg-surface p-2 text-xs text-foreground">
-                        {isFolder ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => startDraft("folder", child.path)}
-                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                            >
-                              <FontAwesomeIcon icon={faFolder} />
-                              Add folder
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => startDraft("file", child.path)}
-                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                            >
-                              <FontAwesomeIcon icon={faPlus} />
-                              Add document
-                            </button>
-                            {clipboard ? (
-                              <button
-                                type="button"
-                                onClick={() => pasteInto(child.path)}
-                                className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                              >
-                                <FontAwesomeIcon icon={faPaste} />
-                                Paste
-                              </button>
-                            ) : null}
-                          </>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => startClipboard("copy", child)}
-                          className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                        >
-                          <FontAwesomeIcon icon={faCopy} />
-                          Copy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startClipboard("cut", child)}
-                          className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                        >
-                          <FontAwesomeIcon icon={faScissors} />
-                          Cut
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            startRename(child.path, child.name, child.type)
-                          }
-                          className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                        >
-                          <FontAwesomeIcon icon={faPen} />
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startDelete(child.path, child.type)}
-                          className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                          Delete
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-              {isFolder && !isCollapsed ? renderChildren(child, depth + 1) : null}
-            </div>
-          );
-        })}
-
-        {draft && draft.parentPath === node.path ? (
-          <div
-            className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1"
-            style={{ marginLeft: depth * 12 }}
-          >
-            <span className="text-xs text-muted">
-              <FontAwesomeIcon
-                icon={draft.type === "folder" ? faFolder : faFileLines}
-              />
-            </span>
-            <input
-              autoFocus
-              value={draft.name}
-              onChange={(event) =>
-                setDraft((prev) =>
-                  prev ? { ...prev, name: event.target.value } : prev,
-                )
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  confirmDraft();
-                }
-              }}
-              placeholder={draft.type === "folder" ? "folder-name" : "new-page"}
-              className="flex-1 bg-transparent text-sm text-foreground"
-              disabled={isPending}
-            />
-            <button
-              type="button"
-              onClick={confirmDraft}
-              className="text-xs text-emerald-600 hover:text-emerald-500"
-              disabled={isPending}
-            >
-              <FontAwesomeIcon icon={faCheck} />
-            </button>
-            <button
-              type="button"
-              onClick={cancelDraft}
-              className="text-xs text-rose-500 hover:text-rose-400"
-              disabled={isPending}
-            >
-              <FontAwesomeIcon icon={faXmark} />
-            </button>
-          </div>
-        ) : null}
-
-        {renameState && renameState.path === node.path && renameErrorMessage ? (
-          <p
-            className="mt-1 text-[11px] text-muted"
-            style={{ marginLeft: (depth + 1) * 12 }}
-          >
-            {renameErrorMessage}
-          </p>
-        ) : null}
-
-        {deleteTarget?.path === node.path && deleteErrorMessage ? (
-          <p
-            className="mt-1 text-[11px] text-muted"
-            style={{ marginLeft: (depth + 1) * 12 }}
-          >
-            {deleteErrorMessage}
-          </p>
-        ) : null}
-
-        {draft && draft.parentPath === node.path && draftErrorMessage ? (
-          <p
-            className="mt-1 text-[11px] text-muted"
-            style={{ marginLeft: (depth + 1) * 12 }}
-          >
-            {draftErrorMessage}
-          </p>
-        ) : null}
-
-        {isRoot && children.length === 0 && !rootMissing ? (
-          <p className="mt-2 text-[11px] text-muted">
-            No folders yet. Use the add folder icon to get started.
-          </p>
-        ) : null}
-
-        {isRoot && rootMissing ? (
-          <div className="mt-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted">
-            <span className="font-semibold text-foreground">
-              Root not found.
-            </span>{" "}
-            Update `folia.config.json`.
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-
-  const renderTree = (node: TreeNode, depth = 0): ReactElement => {
-    const isRenamingRoot = renameState?.path === node.path;
-    const isDeletingRoot = deleteTarget?.path === node.path;
-    const isRootCollapsed =
-      !shouldExpandAll && collapsedFolders.has(node.path);
-
-    return (
-      <div className={depth === 0 ? "mt-4" : "mt-2"}>
-        {isRenamingRoot ? (
-          <div
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1"
-            style={{ paddingLeft: depth * 12 }}
-          >
-            <span className="text-xs text-muted">
-              <FontAwesomeIcon icon={faFolder} />
-            </span>
-            <input
-              autoFocus
-              value={renameState.name}
-              onChange={(event) =>
-                setRenameState((prev) =>
-                  prev ? { ...prev, name: event.target.value } : prev,
-                )
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  confirmRename();
-                }
-              }}
-              placeholder="rename-item"
-              className="flex min-w-0 flex-1 bg-transparent text-sm text-foreground"
-              disabled={isPending}
-            />
-            <button
-              type="button"
-              onClick={confirmRename}
-              className="text-xs text-emerald-600 hover:text-emerald-500"
-              disabled={isPending}
-            >
-              <FontAwesomeIcon icon={faCheck} />
-            </button>
-            <button
-              type="button"
-              onClick={cancelRename}
-              className="text-xs text-rose-500 hover:text-rose-400"
-              disabled={isPending}
-            >
-              <FontAwesomeIcon icon={faXmark} />
-            </button>
-          </div>
-        ) : isDeletingRoot ? (
-          <div
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1 text-xs text-muted"
-            style={{ paddingLeft: depth * 12 }}
-          >
-            <span className="text-xs text-muted">
-              <FontAwesomeIcon icon={faFolder} />
-            </span>
-            <span className="flex-1">
-              {deleteTarget?.type === "folder"
-                ? "Delete folder and contents?"
-                : "Delete file?"}
-            </span>
-            <button
-              type="button"
-              onClick={confirmDelete}
-              className="text-xs text-emerald-600 hover:text-emerald-500"
-              disabled={isPending}
-            >
-              <FontAwesomeIcon icon={faCheck} />
-            </button>
-            <button
-              type="button"
-              onClick={cancelDelete}
-              className="text-xs text-rose-500 hover:text-rose-400"
-              disabled={isPending}
-            >
-              <FontAwesomeIcon icon={faXmark} />
-            </button>
-          </div>
-        ) : (
-          <div
-            className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm text-foreground hover:bg-surface-strong"
-            style={{ paddingLeft: depth * 12 }}
-          >
-            <button
-              type="button"
-              onClick={() => toggleFolder(node.path)}
-              className="text-[10px] text-muted"
-              aria-label={isRootCollapsed ? "Expand folder" : "Collapse folder"}
-            >
-              <FontAwesomeIcon
-                icon={isRootCollapsed ? faChevronRight : faChevronDown}
-              />
-            </button>
-            <span className="text-xs text-muted">
-              <FontAwesomeIcon icon={faFolder} />
-            </span>
-            <span className="break-words font-semibold">{node.name}</span>
-            <div className="ml-auto flex items-center gap-1">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenMenu((prev) => (prev === node.path ? null : node.path))
-                  }
-                  className="rounded-lg border border-border px-2 py-0.5 text-[10px] text-muted transition hover:border-transparent hover:bg-surface-strong"
-                  aria-label="Open actions"
-                  title="Actions"
-                >
-                  <FontAwesomeIcon icon={faEllipsis} />
-                </button>
-                {openMenu === node.path ? (
-                  <div className="absolute right-0 top-6 z-10 w-40 rounded-xl border border-border bg-surface p-2 text-xs text-foreground">
-                    <button
-                      type="button"
-                      onClick={() => startDraft("folder", node.path)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                    >
-                      <FontAwesomeIcon icon={faFolder} />
-                      Add folder
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => startDraft("file", node.path)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                    >
-                      <FontAwesomeIcon icon={faPlus} />
-                      Add document
-                    </button>
-                    {clipboard ? (
-                      <button
-                        type="button"
-                        onClick={() => pasteInto(node.path)}
-                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
-                      >
-                        <FontAwesomeIcon icon={faPaste} />
-                        Paste
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        )}
-        {isRootCollapsed ? null : renderChildren(node, depth)}
-      </div>
-    );
-  };
-
-  const formatTimestamp = (value: number | null | undefined) => {
-    if (!value) return "Unknown";
-    return new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(value));
-  };
-
-  const renderLanding = () => (
-    <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-surface px-6 py-10 text-center">
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            "radial-gradient(650px circle at 12% 18%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 58%), radial-gradient(520px circle at 90% 10%, color-mix(in srgb, var(--foreground) 10%, transparent), transparent 60%)",
-        }}
-      />
-      <div className="relative z-10 flex max-w-2xl flex-col items-center gap-5">
-        <div className="space-y-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-muted">
-            Welcome to Folia
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Start a new page or pick one from the tree.
-          </h2>
-          <p className="text-sm text-muted sm:text-base">
-            This panel is your writing desk. Create a folder, add a document,
-            then switch to Edit when you are ready to draft.
-          </p>
-        </div>
-        <div className="grid w-full gap-3 sm:grid-cols-3">
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-4 text-xs text-foreground">
-            <span className="text-sm text-muted">
-              <FontAwesomeIcon icon={faFolder} />
-            </span>
-            <span className="font-semibold uppercase tracking-[0.2em]">
-              New folder
-            </span>
-            <span className="text-muted">Organize the library tree.</span>
-          </div>
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-4 text-xs text-foreground">
-            <span className="text-sm text-muted">
-              <FontAwesomeIcon icon={faPlus} />
-            </span>
-            <span className="font-semibold uppercase tracking-[0.2em]">
-              Add document
-            </span>
-            <span className="text-muted">Create a new Markdown page.</span>
-          </div>
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-4 text-xs text-foreground">
-            <span className="text-sm text-muted">
-              <FontAwesomeIcon icon={faFileLines} />
-            </span>
-            <span className="font-semibold uppercase tracking-[0.2em]">
-              Select a file
-            </span>
-            <span className="text-muted">Edit or preview on the right.</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => startDraft("folder", "")}
-            className={`${isSidebarOpen ? "inline-flex" : "hidden"} rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong lg:inline-flex`}
-          >
-            Add folder
-          </button>
-          <button
-            type="button"
-            onClick={() => startDraft("file", "")}
-            className={`${isSidebarOpen ? "inline-flex" : "hidden"} rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong lg:inline-flex`}
-          >
-            Add document
-          </button>
-        </div>
-        <div className="text-xs text-muted">
-          Tip: use the Actions menu on folders to add content.
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="app-shell text-[15px] text-foreground sm:text-base">
       <main className="flex h-screen w-full flex-col gap-4 overflow-hidden px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6">
-        <header className="flex flex-wrap items-center justify-between gap-4 px-3 sm:px-0">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="rounded-md border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong lg:hidden"
-              aria-label="Open library"
-            >
-              ☰
-            </button>
-            <span className="ink text-2xl font-semibold tracking-tight">
-              Folia
-            </span>
-            <span className="rounded-md border border-border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-              library
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative sm:hidden">
-              <button
-                type="button"
-                onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
-                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-                aria-expanded={isHeaderMenuOpen}
-                aria-haspopup="menu"
-              >
-                Actions
-              </button>
-              {isHeaderMenuOpen ? (
-                <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-border bg-surface p-2 shadow-lg">
-                  { /* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                  <a
-                    href="/changelog"
-                    className="block rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-                    onClick={() => setIsHeaderMenuOpen(false)}
-                  >
-                    About
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toggleTheme();
-                      setIsHeaderMenuOpen(false);
-                    }}
-                    className="mt-1 w-full rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-                  >
-                    {theme === "dark" ? "Light mode" : "Dark mode"}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <div className="hidden items-center gap-3 sm:flex">
-              { /* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a
-                href="/changelog"
-                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-              >
-                About
-              </a>
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-              >
-                {theme === "dark" ? "Light mode" : "Dark mode"}
-              </button>
-            </div>
-          </div>
-        </header>
+        <LibraryHeader
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+        />
 
         <section className="grid flex-1 min-h-0 gap-4 sm:gap-6 lg:grid-cols-[400px_1fr]">
-          {isSidebarOpen ? (
-            <div
-              className="fixed inset-0 z-30 bg-black/30 lg:hidden"
-              onClick={() => setIsSidebarOpen(false)}
-              aria-hidden="true"
-            />
-          ) : null}
-          <aside
-            className={`panel fixed inset-y-0 left-0 z-40 flex h-full w-full max-w-[380px] flex-col rounded-none p-4 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:max-w-none lg:translate-x-0 lg:rounded-xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-              }`}
-          >
-            <div className="flex items-center justify-between gap-3 lg:hidden">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                Library
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(false)}
-                className="rounded-md border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
-              >
-                Close
-              </button>
-            </div>
-            <div className="hidden items-start justify-between gap-3 lg:flex">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                Library root
-              </p>
-              <span className="rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
-                {snapshot.collections.length} collections
-              </span>
-            </div>
-            <p className="mt-2 text-xs font-semibold text-foreground">
-              {snapshot.root}
-            </p>
-
-            <form
-              className="mt-4 flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs text-muted"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setSubmittedQuery(searchQuery);
-              }}
-            >
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search pages..."
-                className="w-full bg-transparent text-xs text-foreground placeholder:text-muted"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    setSubmittedQuery(searchQuery);
-                  }
-                }}
-              />
-              <button
-                type="submit"
-                className="text-xs text-muted hover:text-foreground"
-                aria-label="Search"
-              >
-                <FontAwesomeIcon icon={faMagnifyingGlass} />
-              </button>
-            </form>
-
-            {isSearching ? (
-              <p className="mt-2 text-[11px] text-muted">Searching...</p>
-            ) : !hasSearchResults ? (
-              <p className="mt-2 text-[11px] text-muted">
-                No matches. Try another name.
-              </p>
-            ) : null}
-
-            <div className="mt-4 flex-1 overflow-y-auto overflow-x-hidden">
-              {renderTree(filteredTree)}
-            </div>
-          </aside>
+          <LibrarySidebar
+            snapshot={snapshot}
+            isSidebarOpen={isSidebarOpen}
+            onCloseSidebar={() => setIsSidebarOpen(false)}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSearchSubmit={submitSearch}
+            isSearching={isSearching}
+            hasSearchResults={hasSearchResults}
+            treeState={{
+              tree: filteredTree,
+              draft,
+              renameState,
+              deleteTarget,
+              clipboard,
+              collapsedFolders,
+              selectedFile,
+              rootMissing,
+              shouldExpandAll,
+              isPending,
+              draftErrorMessage,
+              renameErrorMessage,
+              deleteErrorMessage,
+            }}
+            treeHandlers={{
+              onToggleFolder: toggleFolder,
+              onSelectFile: selectFile,
+              onStartDraft: startDraft,
+              onStartRename: startRename,
+              onStartDelete: startDelete,
+              onConfirmDraft: confirmDraft,
+              onCancelDraft: cancelDraft,
+              onConfirmRename: confirmRename,
+              onCancelRename: cancelRename,
+              onConfirmDelete: confirmDelete,
+              onCancelDelete: cancelDelete,
+              onStartClipboard: startClipboard,
+              onPasteInto: pasteInto,
+              onUpdateDraftName: (name) =>
+                setDraft((prev) => (prev ? { ...prev, name } : prev)),
+              onUpdateRenameName: (name) =>
+                setRenameState((prev) => (prev ? { ...prev, name } : prev)),
+            }}
+          />
 
           <section className="panel flex h-full min-h-0 flex-col overflow-hidden rounded-md p-2 sm:rounded-xl sm:p-5">
             {selectedFile ? (
-              <>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className="truncate text-sm font-semibold text-foreground hidden sm:flex">
-                      {selectedFile.name}
-                    </span>
-                    <div className="flex flex-wrap gap-3 text-[11px] text-muted hidden sm:flex">
-                      <span>Created {formatTimestamp(fileMeta?.createdAt)}</span>
-                      <span>Updated {formatTimestamp(fileMeta?.updatedAt)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold text-muted">
-                      {saveStatus}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing((prev) => !prev)}
-                      className="rounded-md border border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong"
-                    >
-                      {isEditing ? "Preview" : "Edit"}
-                    </button>
-                    {isEditing ? (
-                      <button
-                        type="button"
-                        onClick={saveFile}
-                        disabled={isPending}
-                        className="rounded-md border border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Save
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="mt-4 flex-1 min-h-0 overflow-hidden bg-surface sm:mt-6">
-                  <MDEditor
-                    value={content}
-                    onChange={(next) => setContent(next ?? "")}
-                    data-color-mode={theme}
-                    preview={isEditing ? "live" : "preview"}
-                    hideToolbar={!isEditing}
-                    height="100%"
-                    textareaProps={{
-                      placeholder: "Start writing in Markdown...",
-                    }}
-                  />
-                </div>
-              </>
+              <EditorPane
+                selectedFile={selectedFile}
+                fileMeta={fileMeta}
+                saveStatus={saveStatus}
+                isEditing={isEditing}
+                isPending={isPending}
+                theme={theme}
+                content={content}
+                onToggleEdit={() => setIsEditing((prev) => !prev)}
+                onSave={saveFile}
+                onContentChange={setContent}
+              />
             ) : (
-              <div className="mt-2 flex-1 min-h-0">{renderLanding()}</div>
+              <div className="mt-2 flex-1 min-h-0">
+                <LibraryLanding
+                  isSidebarOpen={isSidebarOpen}
+                  onAddFolder={() => startDraft("folder", "")}
+                  onAddFile={() => startDraft("file", "")}
+                />
+              </div>
             )}
           </section>
         </section>
