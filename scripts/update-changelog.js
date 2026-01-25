@@ -71,7 +71,7 @@ const prompt = [
   commits ? commits : "(no commits found in range)",
 ].join("\n");
 
-const result = spawnSync("codex", ["-e", prompt], {
+const result = spawnSync("codex", ["exec", prompt], {
   cwd: rootDir,
   stdio: "inherit",
 });
