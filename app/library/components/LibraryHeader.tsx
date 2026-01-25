@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEllipsis } from "@fortawesome/free-solid-svg-icons";
 
 type LibraryHeaderProps = {
   theme: "light" | "dark";
@@ -36,11 +38,12 @@ export default function LibraryHeader({
           <button
             type="button"
             onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
-            className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+            className="rounded-md border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
             aria-expanded={isHeaderMenuOpen}
             aria-haspopup="menu"
+            aria-label="Actions"
           >
-            Actions
+            <FontAwesomeIcon icon={faEllipsis} />
           </button>
           {isHeaderMenuOpen ? (
             <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-border bg-surface p-2 shadow-lg">
