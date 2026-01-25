@@ -81,4 +81,25 @@ if (result.error) {
   process.exit(1);
 }
 
-process.exit(result.status ?? 0);
+if ((result.status ?? 0) !== 0) {
+  process.exit(result.status ?? 1);
+}
+
+const hasChangelogChanges = () => {
+  try {
+    execSync("git diff --quiet -- lib/changelog.ts", { cwd: rootDir });
+    return false;
+  } catch (error) {
+    return true;
+  }
+};
+
+if (hasChangelogChanges()) {
+  execSync("git add lib/changelog.ts", { cwd: rootDir, stdio: "inherit" });
+  execSync(`git commit -m "chore(changelog): update for v${nextVersion}"`, {
+    cwd: rootDir,
+    stdio: "inherit",
+  });
+}
+
+process.exit(0);
