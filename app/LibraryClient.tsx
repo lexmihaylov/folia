@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import type { LibrarySnapshot, TreeNode } from "@/lib/fs/library";
@@ -76,6 +76,7 @@ export default function LibraryClient({
   );
   const [fileMeta, setFileMeta] = useState<FileMeta | null>(initialMeta);
   const [content, setContent] = useState(initialContent);
+  const [lastSavedContent, setLastSavedContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -245,6 +246,7 @@ export default function LibraryClient({
     setSelectedFile({ path, name });
     setSaveStatus("");
     setContent("");
+    setLastSavedContent("");
     setFileMeta(null);
     setIsEditing(false);
     router.push(routeForPath(path));
@@ -252,6 +254,7 @@ export default function LibraryClient({
       const result = await loadPageContent(path);
       if (result.ok && typeof result.content === "string") {
         setContent(result.content);
+        setLastSavedContent(result.content);
         setFileMeta({
           createdAt: result.createdAt ?? null,
           updatedAt: result.updatedAt ?? null,
@@ -328,6 +331,7 @@ export default function LibraryClient({
         updatedAt: result.updatedAt ?? null,
       });
       setContent("");
+      setLastSavedContent("");
       setIsEditing(true);
       router.push(routeForPath(result.path));
     });
@@ -412,25 +416,46 @@ export default function LibraryClient({
     setDeleteError("");
   };
 
-  const saveFile = () => {
-    if (!selectedFile) return;
+  const hasUnsavedChanges =
+    Boolean(selectedFile) && content !== lastSavedContent;
+
+  const saveFile = useCallback(async () => {
+    if (!selectedFile || !hasUnsavedChanges) return hasUnsavedChanges === false;
     setSaveStatus("Saving...");
-    startTransition(async () => {
-      const result = await savePageContent(selectedFile.path, content);
-      if (result.ok) {
-        setSaveStatus("Saved");
-        setFileMeta({
-          createdAt: result.createdAt ?? fileMeta?.createdAt ?? null,
-          updatedAt: result.updatedAt ?? fileMeta?.updatedAt ?? null,
-        });
-      } else {
-        setSaveStatus(
-          result.error === "unauthorized"
-            ? "Session expired"
-            : "Save failed",
-        );
-      }
+    return new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const result = await savePageContent(selectedFile.path, content);
+        if (result.ok) {
+          setSaveStatus("Saved");
+          setLastSavedContent(content);
+          setFileMeta({
+            createdAt: result.createdAt ?? fileMeta?.createdAt ?? null,
+            updatedAt: result.updatedAt ?? fileMeta?.updatedAt ?? null,
+          });
+          resolve(true);
+        } else {
+          setSaveStatus(
+            result.error === "unauthorized"
+              ? "Session expired"
+              : "Save failed",
+          );
+          resolve(false);
+        }
+      });
     });
+  }, [
+    content,
+    fileMeta?.createdAt,
+    fileMeta?.updatedAt,
+    hasUnsavedChanges,
+    selectedFile,
+  ]);
+
+  const handleToggleEdit = async () => {
+    if (isEditing) {
+      await saveFile();
+    }
+    setIsEditing((prev) => !prev);
   };
 
   const draftErrorMessage = useMemo(() => {
@@ -479,6 +504,28 @@ export default function LibraryClient({
         return "";
     }
   }, [deleteError]);
+
+  useEffect(() => {
+    if (!isEditing || !selectedFile) return;
+    if (hasUnsavedChanges && (saveStatus === "" || saveStatus === "Saved")) {
+      setSaveStatus("Unsaved");
+    }
+    if (!hasUnsavedChanges && saveStatus === "Unsaved") {
+      setSaveStatus("Saved");
+    }
+  }, [hasUnsavedChanges, isEditing, saveStatus, selectedFile]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isEditing) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveFile();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isEditing, saveFile]);
 
   return (
     <div className="app-shell text-[15px] text-foreground sm:text-base">
@@ -545,7 +592,7 @@ export default function LibraryClient({
                 isPending={isPending}
                 theme={theme}
                 content={content}
-                onToggleEdit={() => setIsEditing((prev) => !prev)}
+                onToggleEdit={handleToggleEdit}
                 onSave={saveFile}
                 onContentChange={setContent}
               />

@@ -4,6 +4,7 @@ import { config } from "@fortawesome/fontawesome-svg-core";
 import { Fraunces, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { getAuthenticatedUsername } from "@/lib/auth/guard";
 import { readUserData } from "@/lib/auth/user-data";
+import PWARegister from "@/app/pwa/PWARegister";
 import "@uiw/react-md-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
 import "./globals.css";
@@ -28,6 +29,16 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Folia",
   description: "A filesystem-first knowledge base for living notes and docs.",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#fafafa",
+  appleWebApp: {
+    capable: true,
+    title: "Folia",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export const dynamic = "force-dynamic";
@@ -51,6 +62,7 @@ export default async function RootLayout({
         className={`${spaceGrotesk.variable} ${fraunces.variable} ${jetBrainsMono.variable} antialiased`}
       >
         {children}
+        <PWARegister />
       </body>
     </html>
   );
