@@ -28,6 +28,7 @@ import {
 import LibraryHeader from "@/app/library/components/LibraryHeader";
 import LibraryLanding from "@/app/library/components/LibraryLanding";
 import EditorPane from "@/app/library/components/EditorPane";
+import LockedFilePane from "@/app/library/components/LockedFilePane";
 import LibrarySidebar from "@/app/library/components/LibrarySidebar";
 import VaultDialog from "@/app/library/components/VaultDialog";
 import { useCollapsedFolders } from "@/app/library/hooks/useCollapsedFolders";
@@ -171,6 +172,14 @@ export default function LibraryClient({
     setVaultState(await getVaultStateAction());
   }, []);
 
+  const lockedVaultMessage = useCallback(
+    () =>
+      vaultState.hasVault
+        ? "Unlock the vault to open this note"
+        : "Create a vault to open encrypted notes",
+    [vaultState.hasVault],
+  );
+
   const pasteInto = async (targetPath: string) => {
     if (!clipboard) return;
     ensureExpanded(targetPath);
@@ -297,12 +306,17 @@ export default function LibraryClient({
         result.error === "vault-locked" ||
         result.error === "vault-unconfigured"
       ) {
+        setVaultState({
+          hasVault: result.error !== "vault-unconfigured",
+          isUnlocked: false,
+        });
         setSaveStatus(
           result.error === "vault-unconfigured"
             ? "Create a vault to open encrypted notes"
             : "Unlock the vault to open this note",
         );
-        await refreshVaultState();
+        setFileMeta(null);
+        setIsEditing(false);
       }
       return;
     }
@@ -321,17 +335,21 @@ export default function LibraryClient({
       });
       setSaveStatus("");
     }
-  }, [refreshVaultState]);
+  }, []);
 
   const selectFile = (path: string, name: string) => {
     const isEncrypted = isEncryptedNotePath(path);
     setSelectedFile({ path, name, isEncrypted });
-    setSaveStatus("");
     setContent("");
     setLastSavedContent("");
     setFileMeta(null);
     setIsEditing(false);
     router.push(routeForPath(path));
+    if (isEncrypted && !vaultState.isUnlocked) {
+      setSaveStatus(lockedVaultMessage());
+      return;
+    }
+    setSaveStatus("");
     void loadSelectedFile(path);
   };
 
@@ -590,7 +608,7 @@ export default function LibraryClient({
     if (!result.ok) {
       return { ok: false, error: result.error };
     }
-    await refreshVaultState();
+    setVaultState({ hasVault: true, isUnlocked: true });
     if (selectedFile?.isEncrypted) {
       await loadSelectedFile(selectedFile.path);
     }
@@ -602,7 +620,7 @@ export default function LibraryClient({
     if (!result.ok) {
       return { ok: false, error: result.error };
     }
-    await refreshVaultState();
+    setVaultState({ hasVault: true, isUnlocked: true });
     if (selectedFile?.isEncrypted) {
       await loadSelectedFile(selectedFile.path);
     }
@@ -613,8 +631,6 @@ export default function LibraryClient({
     await lockVaultAction();
     setVaultState({ hasVault: true, isUnlocked: false });
     if (selectedFile?.isEncrypted) {
-      setContent("");
-      setLastSavedContent("");
       setIsEditing(false);
       setSaveStatus("Vault locked");
     }
@@ -679,6 +695,9 @@ export default function LibraryClient({
     }
     return saveStatus;
   }, [hasUnsavedChanges, isEditing, saveStatus, selectedFile]);
+  const isLockedEncryptedSelection = Boolean(
+    selectedFile?.isEncrypted && !vaultState.isUnlocked,
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -760,18 +779,26 @@ export default function LibraryClient({
 
           <section className="panel flex h-full min-h-0 flex-col overflow-hidden rounded-md p-2 sm:rounded-xl sm:p-5">
             {selectedFile ? (
-              <EditorPane
-                selectedFile={selectedFile}
-                fileMeta={fileMeta}
-                saveStatus={displayedSaveStatus}
-                isEditing={isEditing}
-                isPending={isEditorPending}
-                theme={theme}
-                content={content}
-                onToggleEdit={handleToggleEdit}
-                onSave={saveFile}
-                onContentChange={setContent}
-              />
+              isLockedEncryptedSelection ? (
+                <LockedFilePane
+                  selectedFile={selectedFile}
+                  hasVault={vaultState.hasVault}
+                  onOpenVaultDialog={handleVaultToggle}
+                />
+              ) : (
+                <EditorPane
+                  selectedFile={selectedFile}
+                  fileMeta={fileMeta}
+                  saveStatus={displayedSaveStatus}
+                  isEditing={isEditing}
+                  isPending={isEditorPending}
+                  theme={theme}
+                  content={content}
+                  onToggleEdit={handleToggleEdit}
+                  onSave={saveFile}
+                  onContentChange={setContent}
+                />
+              )
             ) : (
               <div className="mt-2 flex-1 min-h-0">
                 <LibraryLanding
