@@ -673,7 +673,7 @@ export default function LibraryClient({
         onUnlock={handleUnlockVault}
         onLock={handleLockVault}
       />
-      <main className="flex h-screen w-full flex-col gap-4 overflow-hidden px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6">
+      <main className="box-border flex h-[100dvh] w-full flex-col gap-4 overflow-hidden px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6">
         <LibraryHeader
           theme={theme}
           hasVault={vaultState.hasVault}
