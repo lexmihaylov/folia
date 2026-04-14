@@ -1,4 +1,4 @@
-const { execSync, spawnSync } = require("child_process");
+const { execFileSync, spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -33,21 +33,26 @@ const bumpVersion = (version, type) => {
   return next.join(".");
 };
 
-const run = (command) =>
-  execSync(command, { cwd: rootDir, encoding: "utf8" }).trim();
+const run = (command, args = []) =>
+  execFileSync(command, args, { cwd: rootDir, encoding: "utf8" }).trim();
 
 let previousTag = "";
 try {
-  previousTag = run("git describe --tags --abbrev=0");
-} catch (error) {
+  previousTag = run("git", ["describe", "--tags", "--abbrev=0"]);
+} catch {
   previousTag = "";
 }
 
 const range = previousTag ? `${previousTag}..HEAD` : "HEAD";
 let commits = "";
 try {
-  commits = run(`git log ${range} --no-merges --pretty=format:%h %s`);
-} catch (error) {
+  commits = run("git", [
+    "log",
+    range,
+    "--no-merges",
+    "--pretty=format:%h %s",
+  ]);
+} catch {
   commits = "";
 }
 
@@ -91,16 +96,22 @@ if ((result.status ?? 0) !== 0) {
 
 const hasChangelogChanges = () => {
   try {
-    execSync("git diff --quiet -- lib/changelog.ts", { cwd: rootDir });
+    execFileSync("git", ["diff", "--quiet", "--", "lib/changelog.ts"], {
+      cwd: rootDir,
+      stdio: "inherit",
+    });
     return false;
-  } catch (error) {
+  } catch {
     return true;
   }
 };
 
 if (hasChangelogChanges()) {
-  execSync("git add lib/changelog.ts", { cwd: rootDir, stdio: "inherit" });
-  execSync(`git commit -m "chore(changelog): update for v${nextVersion}"`, {
+  execFileSync("git", ["add", "lib/changelog.ts"], {
+    cwd: rootDir,
+    stdio: "inherit",
+  });
+  execFileSync("git", ["commit", "-m", `chore(changelog): update for v${nextVersion}`], {
     cwd: rootDir,
     stdio: "inherit",
   });
