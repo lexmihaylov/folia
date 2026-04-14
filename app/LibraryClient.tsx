@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { LibrarySnapshot, TreeNode } from "@/lib/fs/library";
 import {
+  createEncryptedPageInline,
   createFolderInline,
   createPageInline,
   copyFileInline,
@@ -18,10 +19,17 @@ import {
   renameFileInline,
   savePageContent,
 } from "@/app/library/actions";
+import {
+  createVaultAction,
+  getVaultStateAction,
+  lockVaultAction,
+  unlockVaultAction,
+} from "@/app/auth/actions";
 import LibraryHeader from "@/app/library/components/LibraryHeader";
 import LibraryLanding from "@/app/library/components/LibraryLanding";
 import EditorPane from "@/app/library/components/EditorPane";
 import LibrarySidebar from "@/app/library/components/LibrarySidebar";
+import VaultDialog from "@/app/library/components/VaultDialog";
 import { useCollapsedFolders } from "@/app/library/hooks/useCollapsedFolders";
 import { useSearch } from "@/app/library/hooks/useSearch";
 import { useThemePreference } from "@/app/library/hooks/useThemePreference";
@@ -31,6 +39,7 @@ import type {
   FileMeta,
   RenameState,
   SelectedFile,
+  VaultState,
 } from "@/app/library/types";
 import {
   cloneNode,
@@ -41,6 +50,7 @@ import {
   renameFileNode,
   renameNode,
 } from "@/app/library/utils/tree";
+import { isEncryptedNotePath, stripNoteExtension } from "@/lib/encrypted-note";
 
 export type LibraryClientProps = {
   snapshot: LibrarySnapshot;
@@ -49,6 +59,7 @@ export type LibraryClientProps = {
   initialMeta?: FileMeta | null;
   initialCollapsed?: string[];
   initialTheme?: "light" | "dark" | null;
+  initialVaultState: VaultState;
 };
 
 export default function LibraryClient({
@@ -58,6 +69,7 @@ export default function LibraryClient({
   initialMeta = null,
   initialCollapsed = [],
   initialTheme = null,
+  initialVaultState,
 }: LibraryClientProps) {
   const router = useRouter();
   const [tree, setTree] = useState<TreeNode>(snapshot.tree);
@@ -80,7 +92,17 @@ export default function LibraryClient({
   const [isEditing, setIsEditing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [saveStatus, setSaveStatus] = useState("");
+  const [saveStatus, setSaveStatus] = useState(
+    initialSelectedFile?.isEncrypted && !initialVaultState.isUnlocked
+      ? initialVaultState.hasVault
+        ? "Unlock the vault to open this note"
+        : "Create a vault to open encrypted notes"
+      : "",
+  );
+  const [vaultState, setVaultState] = useState<VaultState>(initialVaultState);
+  const [vaultDialogMode, setVaultDialogMode] = useState<
+    "create" | "unlock" | "lock" | null
+  >(null);
 
   const { theme, toggleTheme } = useThemePreference(initialTheme);
   const { collapsedFolders, setCollapsedFolders } =
@@ -108,9 +130,7 @@ export default function LibraryClient({
 
   const routeForPath = (path: string) => {
     const normalized = path.replace(/^\//, "");
-    const trimmed = normalized.endsWith(".md")
-      ? normalized.slice(0, -3)
-      : normalized;
+    const trimmed = stripNoteExtension(normalized);
     const encoded = trimmed
       .split("/")
       .map((segment) => encodeURIComponent(segment))
@@ -143,6 +163,10 @@ export default function LibraryClient({
   const startClipboard = (mode: "copy" | "cut", node: TreeNode) => {
     setClipboard({ path: node.path, name: node.name, type: node.type, mode });
   };
+
+  const refreshVaultState = useCallback(async () => {
+    setVaultState(await getVaultStateAction());
+  }, []);
 
   const pasteInto = async (targetPath: string) => {
     if (!clipboard) return;
@@ -186,6 +210,7 @@ export default function LibraryClient({
                 path: result.path,
                 name: result.name,
                 type: "file",
+                isEncrypted: result.isEncrypted,
               };
 
           const withInsert = insertNode(prev, targetPath, nextNode);
@@ -199,7 +224,11 @@ export default function LibraryClient({
           setClipboard(null);
           if (selectedFile) {
             if (item.type === "file" && selectedFile.path === item.path) {
-              const nextSelected = { path: result.path, name: result.name };
+              const nextSelected = {
+                path: result.path,
+                name: result.name,
+                isEncrypted: result.isEncrypted,
+              };
               setSelectedFile(nextSelected);
               router.push(routeForPath(result.path));
             } else if (
@@ -209,7 +238,11 @@ export default function LibraryClient({
               const nextPath =
                 result.path + selectedFile.path.slice(item.path.length);
               const nextName = nextPath.split("/").pop() ?? selectedFile.name;
-              setSelectedFile({ path: nextPath, name: nextName });
+              setSelectedFile({
+                path: nextPath,
+                name: nextName,
+                isEncrypted: isEncryptedNotePath(nextPath),
+              });
               router.push(routeForPath(nextPath));
             }
           }
@@ -243,7 +276,8 @@ export default function LibraryClient({
   };
 
   const selectFile = (path: string, name: string) => {
-    setSelectedFile({ path, name });
+    const isEncrypted = isEncryptedNotePath(path);
+    setSelectedFile({ path, name, isEncrypted });
     setSaveStatus("");
     setContent("");
     setLastSavedContent("");
@@ -252,18 +286,41 @@ export default function LibraryClient({
     router.push(routeForPath(path));
     startTransition(async () => {
       const result = await loadPageContent(path);
-      if (result.ok && typeof result.content === "string") {
+      if (!result.ok) {
+        if (
+          result.error === "vault-locked" ||
+          result.error === "vault-unconfigured"
+        ) {
+          setSaveStatus(
+            result.error === "vault-unconfigured"
+              ? "Create a vault to open encrypted notes"
+              : "Unlock the vault to open this note",
+          );
+          await refreshVaultState();
+        }
+        return;
+      }
+
+      if (typeof result.content === "string") {
         setContent(result.content);
         setLastSavedContent(result.content);
         setFileMeta({
           createdAt: result.createdAt ?? null,
           updatedAt: result.updatedAt ?? null,
         });
+        setSelectedFile({
+          path: result.path,
+          name: result.name,
+          isEncrypted: result.isEncrypted,
+        });
       }
     });
   };
 
-  const startDraft = (type: "folder" | "file", parentPath: string) => {
+  const startDraft = (
+    type: "folder" | "file" | "encryptedFile",
+    parentPath: string,
+  ) => {
     ensureExpanded(parentPath);
     setDraft({ type, parentPath, name: "" });
     setDraftError("");
@@ -313,19 +370,33 @@ export default function LibraryClient({
         return;
       }
 
-      const result = await createPageInline(draft.parentPath, draft.name);
+      const result =
+        draft.type === "encryptedFile"
+          ? await createEncryptedPageInline(draft.parentPath, draft.name)
+          : await createPageInline(draft.parentPath, draft.name);
       if (!result.ok) {
         setDraftError(result.error);
+        if (
+          result.error === "vault-locked" ||
+          result.error === "vault-unconfigured"
+        ) {
+          await refreshVaultState();
+        }
         return;
       }
       const node: TreeNode = {
         name: result.name,
         path: result.path,
         type: "file",
+        isEncrypted: result.isEncrypted,
       };
       setTree((prev) => insertNode(prev, draft.parentPath, node));
       setDraft(null);
-      setSelectedFile({ path: result.path, name: result.name });
+      setSelectedFile({
+        path: result.path,
+        name: result.name,
+        isEncrypted: result.isEncrypted,
+      });
       setFileMeta({
         createdAt: result.createdAt ?? null,
         updatedAt: result.updatedAt ?? null,
@@ -357,12 +428,20 @@ export default function LibraryClient({
           : renameFileNode(prev, oldPath, newPath, result.name),
       );
       if (selectedFile?.path === oldPath) {
-        setSelectedFile({ path: newPath, name: result.name });
+        setSelectedFile({
+          path: newPath,
+          name: result.name,
+          isEncrypted: result.isEncrypted ?? isEncryptedNotePath(newPath),
+        });
         router.push(routeForPath(newPath));
       } else if (renameState.type === "folder") {
         if (selectedFile?.path.startsWith(oldPath + "/")) {
           const nextPath = selectedFile.path.replace(oldPath, newPath);
-          setSelectedFile({ path: nextPath, name: selectedFile.name });
+          setSelectedFile({
+            path: nextPath,
+            name: selectedFile.name,
+            isEncrypted: isEncryptedNotePath(nextPath),
+          });
           router.push(routeForPath(nextPath));
         }
       }
@@ -437,8 +516,16 @@ export default function LibraryClient({
           setSaveStatus(
             result.error === "unauthorized"
               ? "Session expired"
+              : result.error === "vault-locked"
+                ? "Vault locked"
               : "Save failed",
           );
+          if (
+            result.error === "vault-locked" ||
+            result.error === "vault-unconfigured"
+          ) {
+            await refreshVaultState();
+          }
           resolve(false);
         }
       });
@@ -449,6 +536,7 @@ export default function LibraryClient({
     fileMeta?.updatedAt,
     hasUnsavedChanges,
     selectedFile,
+    refreshVaultState,
   ]);
 
   const handleToggleEdit = async () => {
@@ -456,6 +544,52 @@ export default function LibraryClient({
       await saveFile();
     }
     setIsEditing((prev) => !prev);
+  };
+
+  const handleVaultToggle = () => {
+    setVaultDialogMode(
+      vaultState.hasVault
+        ? vaultState.isUnlocked
+          ? "lock"
+          : "unlock"
+        : "create",
+    );
+  };
+
+  const handleCreateVault = async (passphrase: string) => {
+    const result = await createVaultAction(passphrase);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    await refreshVaultState();
+    if (selectedFile?.isEncrypted) {
+      selectFile(selectedFile.path, selectedFile.name);
+    }
+    return { ok: true };
+  };
+
+  const handleUnlockVault = async (passphrase: string) => {
+    const result = await unlockVaultAction(passphrase);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    await refreshVaultState();
+    if (selectedFile?.isEncrypted) {
+      selectFile(selectedFile.path, selectedFile.name);
+    }
+    return { ok: true };
+  };
+
+  const handleLockVault = async () => {
+    await lockVaultAction();
+    setVaultState({ hasVault: true, isUnlocked: false });
+    if (selectedFile?.isEncrypted) {
+      setContent("");
+      setLastSavedContent("");
+      setIsEditing(false);
+      setSaveStatus("Vault locked");
+    }
+    return { ok: true };
   };
 
   const draftErrorMessage = useMemo(() => {
@@ -470,6 +604,10 @@ export default function LibraryClient({
         return "Unable to write to disk.";
       case "unauthorized":
         return "Session expired. Please sign in again.";
+      case "vault-locked":
+        return "Unlock the vault before creating encrypted notes.";
+      case "vault-unconfigured":
+        return "Create a vault passphrase before using encrypted notes.";
       default:
         return "";
     }
@@ -505,14 +643,12 @@ export default function LibraryClient({
     }
   }, [deleteError]);
 
-  useEffect(() => {
-    if (!isEditing || !selectedFile) return;
-    if (hasUnsavedChanges && (saveStatus === "" || saveStatus === "Saved")) {
-      setSaveStatus("Unsaved");
+  const displayedSaveStatus = useMemo(() => {
+    if (isEditing && selectedFile) {
+      if (hasUnsavedChanges) return "Unsaved";
+      if (saveStatus === "" || saveStatus === "Saved") return "Saved";
     }
-    if (!hasUnsavedChanges && saveStatus === "Unsaved") {
-      setSaveStatus("Saved");
-    }
+    return saveStatus;
   }, [hasUnsavedChanges, isEditing, saveStatus, selectedFile]);
 
   useEffect(() => {
@@ -529,9 +665,20 @@ export default function LibraryClient({
 
   return (
     <div className="app-shell text-[15px] text-foreground sm:text-base">
+      <VaultDialog
+        key={vaultDialogMode ?? "closed"}
+        mode={vaultDialogMode}
+        onClose={() => setVaultDialogMode(null)}
+        onCreate={handleCreateVault}
+        onUnlock={handleUnlockVault}
+        onLock={handleLockVault}
+      />
       <main className="flex h-screen w-full flex-col gap-4 overflow-hidden px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6">
         <LibraryHeader
           theme={theme}
+          hasVault={vaultState.hasVault}
+          isVaultUnlocked={vaultState.isUnlocked}
+          onToggleVault={handleVaultToggle}
           onToggleTheme={toggleTheme}
           onOpenSidebar={() => setIsSidebarOpen(true)}
         />
@@ -587,7 +734,7 @@ export default function LibraryClient({
               <EditorPane
                 selectedFile={selectedFile}
                 fileMeta={fileMeta}
-                saveStatus={saveStatus}
+                saveStatus={displayedSaveStatus}
                 isEditing={isEditing}
                 isPending={isPending}
                 theme={theme}
@@ -602,6 +749,7 @@ export default function LibraryClient({
                   isSidebarOpen={isSidebarOpen}
                   onAddFolder={() => startDraft("folder", "")}
                   onAddFile={() => startDraft("file", "")}
+                  onAddEncryptedFile={() => startDraft("encryptedFile", "")}
                 />
               </div>
             )}

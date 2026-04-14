@@ -10,14 +10,10 @@ export function useSearch() {
 
   useEffect(() => {
     const trimmed = submittedQuery.trim();
-    if (!trimmed) {
-      setSearchMatches([]);
-      setIsSearching(false);
-      return;
-    }
+    if (!trimmed) return;
 
     let active = true;
-    setIsSearching(true);
+
     (async () => {
       const result = await searchPages(trimmed);
       if (!active) return;
@@ -35,7 +31,15 @@ export function useSearch() {
   }, [submittedQuery]);
 
   const submitSearch = () => {
-    setSubmittedQuery(searchQuery);
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSubmittedQuery("");
+      setSearchMatches([]);
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    setSubmittedQuery(trimmed);
   };
 
   return {

@@ -7,12 +7,14 @@ type LibraryLandingProps = {
   isSidebarOpen: boolean;
   onAddFolder: () => void;
   onAddFile: () => void;
+  onAddEncryptedFile: () => void;
 };
 
 export default function LibraryLanding({
   isSidebarOpen,
   onAddFolder,
   onAddFile,
+  onAddEncryptedFile,
 }: LibraryLandingProps) {
   return (
     <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-surface px-6 py-10 text-center">
@@ -37,7 +39,7 @@ export default function LibraryLanding({
             then switch to Edit when you are ready to draft.
           </p>
         </div>
-        <div className="grid w-full gap-3 sm:grid-cols-3">
+        <div className="grid w-full gap-3 sm:grid-cols-4">
           <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-4 text-xs text-foreground">
             <span className="text-sm text-muted">
               <FontAwesomeIcon icon={faFolder} />
@@ -55,6 +57,15 @@ export default function LibraryLanding({
               Add document
             </span>
             <span className="text-muted">Create a new Markdown page.</span>
+          </div>
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-4 text-xs text-foreground">
+            <span className="text-sm text-muted">
+              <FontAwesomeIcon icon={faFileLines} />
+            </span>
+            <span className="font-semibold uppercase tracking-[0.2em]">
+              Encrypted note
+            </span>
+            <span className="text-muted">Store secrets in `.emd` files.</span>
           </div>
           <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-4 text-xs text-foreground">
             <span className="text-sm text-muted">
@@ -80,6 +91,13 @@ export default function LibraryLanding({
             className={`${isSidebarOpen ? "inline-flex" : "hidden"} rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong lg:inline-flex`}
           >
             Add document
+          </button>
+          <button
+            type="button"
+            onClick={onAddEncryptedFile}
+            className={`${isSidebarOpen ? "inline-flex" : "hidden"} rounded-md border border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong lg:inline-flex`}
+          >
+            Add encrypted note
           </button>
         </div>
         <div className="text-xs text-muted">

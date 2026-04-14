@@ -10,6 +10,7 @@ import {
   faEllipsis,
   faFileLines,
   faFolder,
+  faLock,
   faPaste,
   faPen,
   faPlus,
@@ -155,7 +156,9 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
                     )}
                     <span className="text-xs text-muted">
                       <FontAwesomeIcon
-                        icon={isFolder ? faFolder : faFileLines}
+                        icon={
+                          isFolder ? faFolder : child.isEncrypted ? faLock : faFileLines
+                        }
                       />
                     </span>
                     <span
@@ -203,6 +206,17 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
                             >
                               <FontAwesomeIcon icon={faPlus} />
                               Add document
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlers.onStartDraft("encryptedFile", child.path);
+                                setOpenMenu(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
+                            >
+                              <FontAwesomeIcon icon={faLock} />
+                              Add encrypted
                             </button>
                             {state.clipboard ? (
                               <button
@@ -280,7 +294,13 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
           >
             <span className="text-xs text-muted">
               <FontAwesomeIcon
-                icon={state.draft.type === "folder" ? faFolder : faFileLines}
+                icon={
+                  state.draft.type === "folder"
+                    ? faFolder
+                    : state.draft.type === "encryptedFile"
+                      ? faLock
+                      : faFileLines
+                }
               />
             </span>
             <input
@@ -293,7 +313,13 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
                   handlers.onConfirmDraft();
                 }
               }}
-              placeholder={state.draft.type === "folder" ? "folder-name" : "new-page"}
+              placeholder={
+                state.draft.type === "folder"
+                  ? "folder-name"
+                  : state.draft.type === "encryptedFile"
+                    ? "new-secret"
+                    : "new-page"
+              }
               className="flex-1 bg-transparent text-sm text-foreground"
               disabled={state.isPending}
             />
@@ -493,6 +519,17 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
                     >
                       <FontAwesomeIcon icon={faPlus} />
                       Add document
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handlers.onStartDraft("encryptedFile", node.path);
+                        setOpenMenu(null);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-surface-strong"
+                    >
+                      <FontAwesomeIcon icon={faLock} />
+                      Add encrypted
                     </button>
                     {state.clipboard ? (
                       <button

@@ -25,7 +25,10 @@ export type LibraryTreeState = {
 export type LibraryTreeHandlers = {
   onToggleFolder: (path: string) => void;
   onSelectFile: (path: string, name: string) => void;
-  onStartDraft: (type: "folder" | "file", parentPath: string) => void;
+  onStartDraft: (
+    type: "folder" | "file" | "encryptedFile",
+    parentPath: string,
+  ) => void;
   onStartRename: (path: string, name: string, type: "folder" | "file") => void;
   onStartDelete: (path: string, type: "folder" | "file") => void;
   onConfirmDraft: () => void;

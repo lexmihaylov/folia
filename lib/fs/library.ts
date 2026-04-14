@@ -3,6 +3,7 @@ import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 
 import { getFoliaConfig } from "@/lib/config";
+import { isEncryptedNotePath, isSupportedNotePath } from "@/lib/encrypted-note";
 
 export type CollectionInfo = {
   name: string;
@@ -15,6 +16,7 @@ export type TreeNode = {
   name: string;
   path: string;
   type: "folder" | "file";
+  isEncrypted?: boolean;
   children?: TreeNode[];
 };
 
@@ -22,6 +24,7 @@ export type RecentPage = {
   name: string;
   path: string;
   updatedAt: number;
+  isEncrypted: boolean;
 };
 
 export type LibrarySnapshot = {
@@ -132,16 +135,18 @@ async function scanLibrary(root: string): Promise<LibrarySnapshot> {
         continue;
       }
 
-      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+      if (!entry.isFile() || !isSupportedNotePath(entry.name)) continue;
 
       const stats = await direntStat(entryAbs);
       if (!stats) continue;
+      const isEncrypted = isEncryptedNotePath(entry.name);
 
       if (parentNode?.children) {
         parentNode.children.push({
           name: entry.name,
           path: toPosix(entryRel),
           type: "file",
+          isEncrypted,
         });
       }
 
@@ -151,6 +156,7 @@ async function scanLibrary(root: string): Promise<LibrarySnapshot> {
         name: entry.name,
         path: relPosix,
         updatedAt,
+        isEncrypted,
       });
 
       const segments = entryRel.split(path.sep).filter(Boolean);

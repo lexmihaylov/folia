@@ -43,13 +43,23 @@ export default function SetupClient() {
     const username = String(formData.get("username") ?? "");
     const password = String(formData.get("password") ?? "");
     const confirm = String(formData.get("confirm") ?? "");
+    const vaultPassphrase = String(formData.get("vaultPassphrase") ?? "");
+    const vaultConfirm = String(formData.get("vaultConfirm") ?? "");
     if (password !== confirm) {
       setError("Passwords do not match.");
       return;
     }
+    if (vaultPassphrase !== vaultConfirm) {
+      setError("Vault passphrases do not match.");
+      return;
+    }
     setError("");
     startTransition(async () => {
-      const result = await createCredentialsAction(username, password);
+      const result = await createCredentialsAction(
+        username,
+        password,
+        vaultPassphrase,
+      );
       if (result.ok) {
         router.push("/");
         router.refresh();
@@ -114,6 +124,28 @@ export default function SetupClient() {
               autoComplete="new-password"
               className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground"
               placeholder="••••••••"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Vault passphrase
+            <input
+              name="vaultPassphrase"
+              type="password"
+              autoComplete="new-password"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground"
+              placeholder="For encrypted notes"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Confirm vault passphrase
+            <input
+              name="vaultConfirm"
+              type="password"
+              autoComplete="new-password"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground"
+              placeholder="Repeat vault passphrase"
               required
             />
           </label>

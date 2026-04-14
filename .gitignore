@@ -36,10 +36,12 @@ yarn-error.log*
 
 # auth
 credentials.json
+vault.json
 knowledgebase/
 
 # vercel
 .vercel
+.codex
 
 # typescript
 *.tsbuildinfo

@@ -4,6 +4,7 @@ import { getLibrarySnapshot } from "@/lib/fs/library";
 import LibraryClient from "@/app/LibraryClient";
 import { getAuthenticatedUsername, requireAuth } from "@/lib/auth/guard";
 import { readUserData } from "@/lib/auth/user-data";
+import { getVaultStateAction } from "@/app/auth/actions";
 
 export default async function Home() {
   await requireAuth();
@@ -19,11 +20,13 @@ export default async function Home() {
     ? userData.collapsed.filter((item) => typeof item === "string")
     : [];
   const snapshot = await getLibrarySnapshot();
+  const vaultState = await getVaultStateAction();
   return (
     <LibraryClient
       snapshot={snapshot}
       initialCollapsed={initialCollapsed}
       initialTheme={initialTheme}
+      initialVaultState={vaultState}
     />
   );
 }

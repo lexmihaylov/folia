@@ -1,17 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEllipsis } from "@fortawesome/free-solid-svg-icons";
 
 type LibraryHeaderProps = {
   theme: "light" | "dark";
+  hasVault: boolean;
+  isVaultUnlocked: boolean;
+  onToggleVault: () => void;
   onToggleTheme: () => void;
   onOpenSidebar: () => void;
 };
 
 export default function LibraryHeader({
   theme,
+  hasVault,
+  isVaultUnlocked,
+  onToggleVault,
   onToggleTheme,
   onOpenSidebar,
 }: LibraryHeaderProps) {
@@ -47,14 +54,27 @@ export default function LibraryHeader({
           </button>
           {isHeaderMenuOpen ? (
             <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-border bg-surface p-2 shadow-lg">
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a
+              <Link
                 href="/changelog"
                 className="block rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
                 onClick={() => setIsHeaderMenuOpen(false)}
               >
                 About
-              </a>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleVault();
+                  setIsHeaderMenuOpen(false);
+                }}
+                className="mt-1 w-full rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+              >
+                {hasVault
+                  ? isVaultUnlocked
+                    ? "Lock vault"
+                    : "Unlock vault"
+                  : "Create vault"}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -69,13 +89,23 @@ export default function LibraryHeader({
           ) : null}
         </div>
         <div className="hidden items-center gap-3 sm:flex">
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a
+          <Link
             href="/changelog"
             className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
           >
             About
-          </a>
+          </Link>
+          <button
+            type="button"
+            onClick={onToggleVault}
+            className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
+          >
+            {hasVault
+              ? isVaultUnlocked
+                ? "Lock vault"
+                : "Unlock vault"
+              : "Create vault"}
+          </button>
           <button
             type="button"
             onClick={onToggleTheme}

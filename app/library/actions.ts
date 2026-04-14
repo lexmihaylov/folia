@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import {
   cp,
   copyFile,
@@ -16,20 +17,46 @@ import { promisify } from "node:util";
 
 import { getFoliaConfig } from "@/lib/config";
 import { isAuthenticated } from "@/lib/auth/guard";
+import {
+  decryptNoteContent,
+  encryptNoteContent,
+  ENCRYPTED_NOTE_EXTENSION,
+  isEncryptedNotePath,
+  isSupportedNotePath,
+  MARKDOWN_NOTE_EXTENSION,
+} from "@/lib/encrypted-note";
+import { getVaultSessionKey, readVaultCredentials, VAULT_SESSION_COOKIE } from "@/lib/vault";
 
 type ActionResult =
   | {
       ok: true;
       path: string;
       name: string;
+      isEncrypted?: boolean;
       createdAt?: number | null;
       updatedAt?: number | null;
     }
   | { ok: false; error: string };
 
+type LoadPageResult =
+  | {
+      ok: true;
+      path: string;
+      name: string;
+      content: string;
+      isEncrypted?: boolean;
+      createdAt?: number | null;
+      updatedAt?: number | null;
+    }
+  | { ok: false; error: string };
+
+type VaultKeyResult =
+  | { ok: true; key: Buffer }
+  | { ok: false; error: "vault-unconfigured" | "vault-locked" };
+
 const execFileAsync = promisify(execFile);
 
-async function requireActionAuth(): Promise<ActionResult | null> {
+async function requireActionAuth(): Promise<{ ok: false; error: string } | null> {
   const ok = await isAuthenticated();
   if (!ok) {
     return { ok: false, error: "unauthorized" };
@@ -82,9 +109,13 @@ function slugify(input: string): string {
 function normalizeFileName(input: string): string | null {
   const segment = normalizeSegment(input);
   if (!segment) return null;
-  const rawBase = segment.endsWith(".md") ? segment.slice(0, -3) : segment;
+  const rawBase = segment.endsWith(MARKDOWN_NOTE_EXTENSION)
+    ? segment.slice(0, -MARKDOWN_NOTE_EXTENSION.length)
+    : segment.endsWith(ENCRYPTED_NOTE_EXTENSION)
+      ? segment.slice(0, -ENCRYPTED_NOTE_EXTENSION.length)
+      : segment;
   const slug = slugify(rawBase);
-  return `${slug}.md`;
+  return `${slug}${MARKDOWN_NOTE_EXTENSION}`;
 }
 
 function buildFolderPath(parentPath: string, name: string): string | null {
@@ -103,6 +134,17 @@ function buildFilePath(parentPath: string, name: string): string | null {
   return relativeParent ? path.posix.join(relativeParent, fileName) : fileName;
 }
 
+function buildEncryptedFilePath(parentPath: string, name: string): string | null {
+  const fileName = normalizeFileName(name);
+  if (!fileName) return null;
+  const encryptedName = `${fileName.slice(0, -MARKDOWN_NOTE_EXTENSION.length)}${ENCRYPTED_NOTE_EXTENSION}`;
+  const relativeParent = normalizeRelativePath(parentPath);
+  if (relativeParent === null) return null;
+  return relativeParent
+    ? path.posix.join(relativeParent, encryptedName)
+    : encryptedName;
+}
+
 async function resolveTarget(root: string, relativePath: string) {
   const resolvedRoot = path.resolve(root);
   const target = path.resolve(path.join(resolvedRoot, relativePath));
@@ -114,6 +156,23 @@ async function resolveTarget(root: string, relativePath: string) {
 
 function toPosixPath(input: string): string {
   return input.split(path.sep).join(path.posix.sep);
+}
+
+async function requireVaultKey(): Promise<VaultKeyResult> {
+  const credentials = await readVaultCredentials();
+  if (!credentials) {
+    return { ok: false, error: "vault-unconfigured" };
+  }
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get(VAULT_SESSION_COOKIE)?.value;
+  if (!cookie) {
+    return { ok: false, error: "vault-locked" };
+  }
+  const key = getVaultSessionKey(cookie, credentials);
+  if (!key) {
+    return { ok: false, error: "vault-locked" };
+  }
+  return { ok: true, key };
 }
 
 export async function createFolderInline(
@@ -210,16 +269,21 @@ export async function renameFileInline(
   const authError = await requireActionAuth();
   if (authError) return authError;
   const safeTarget = normalizeRelativePath(targetPath);
-  if (safeTarget === null || safeTarget === "" || !safeTarget.endsWith(".md")) {
+  if (safeTarget === null || safeTarget === "" || !isSupportedNotePath(safeTarget)) {
     return { ok: false, error: "invalid-path" };
   }
   const segment = normalizeSegment(newName);
   if (!segment) return { ok: false, error: "invalid-name" };
 
   const parent = path.posix.dirname(safeTarget);
-  const baseName = segment.endsWith(".md") ? segment.slice(0, -3) : segment;
+  const isEncrypted = isEncryptedNotePath(safeTarget);
+  const baseName = segment.endsWith(MARKDOWN_NOTE_EXTENSION)
+    ? segment.slice(0, -MARKDOWN_NOTE_EXTENSION.length)
+    : segment.endsWith(ENCRYPTED_NOTE_EXTENSION)
+      ? segment.slice(0, -ENCRYPTED_NOTE_EXTENSION.length)
+      : segment;
   const slug = slugify(baseName);
-  const nextFile = `${slug}.md`;
+  const nextFile = `${slug}${isEncrypted ? ENCRYPTED_NOTE_EXTENSION : MARKDOWN_NOTE_EXTENSION}`;
   const nextPath =
     parent === "." ? nextFile : path.posix.join(parent, nextFile);
 
@@ -246,7 +310,7 @@ export async function renameFileInline(
     return { ok: false, error: "write-failed" };
   }
 
-  return { ok: true, path: nextPath, name: nextFile };
+  return { ok: true, path: nextPath, name: nextFile, isEncrypted };
 }
 
 export async function deleteFolderInline(
@@ -269,8 +333,7 @@ export async function deleteFolderInline(
 
   try {
     await rm(targetDir, { recursive: true });
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
+  } catch {
     return { ok: false, error: "write-failed" };
   }
 
@@ -283,7 +346,7 @@ export async function deleteFileInline(
   const authError = await requireActionAuth();
   if (authError) return authError;
   const safeTarget = normalizeRelativePath(targetPath);
-  if (safeTarget === null || safeTarget === "" || !safeTarget.endsWith(".md")) {
+  if (safeTarget === null || safeTarget === "" || !isSupportedNotePath(safeTarget)) {
     return { ok: false, error: "invalid-path" };
   }
 
@@ -343,6 +406,53 @@ export async function createPageInline(
     ok: true,
     path: relativePath,
     name: path.posix.basename(relativePath),
+    isEncrypted: false,
+    ...meta,
+  };
+}
+
+export async function createEncryptedPageInline(
+  parentPath: string,
+  name: string,
+): Promise<ActionResult> {
+  const authError = await requireActionAuth();
+  if (authError) return authError;
+  const vault = await requireVaultKey();
+  if (!vault.ok) return vault;
+  const relativePath = buildEncryptedFilePath(parentPath, name);
+  if (!relativePath) return { ok: false, error: "invalid-name" };
+
+  const { libraryRoot } = await getFoliaConfig();
+  let filePath: string;
+  try {
+    filePath = await resolveTarget(libraryRoot, relativePath);
+  } catch {
+    return { ok: false, error: "invalid-path" };
+  }
+
+  try {
+    await writeFile(filePath, encryptNoteContent("", vault.key), { flag: "wx" });
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "EEXIST") return { ok: false, error: "exists" };
+    return { ok: false, error: "write-failed" };
+  }
+
+  let meta: { createdAt: number | null; updatedAt: number | null } = {
+    createdAt: null,
+    updatedAt: null,
+  };
+  try {
+    meta = toFileMeta(await stat(filePath));
+  } catch {
+    // Best-effort metadata.
+  }
+
+  return {
+    ok: true,
+    path: relativePath,
+    name: path.posix.basename(relativePath),
+    isEncrypted: true,
     ...meta,
   };
 }
@@ -464,10 +574,12 @@ export async function copyFileInline(
   const authError = await requireActionAuth();
   if (authError) return authError;
   const safeSource = normalizeRelativePath(sourcePath);
-  if (safeSource === null || !safeSource.endsWith(".md")) {
+  if (safeSource === null || !isSupportedNotePath(safeSource)) {
     return { ok: false, error: "invalid-path" };
   }
-  const relativePath = buildFilePath(parentPath, name);
+  const relativePath = isEncryptedNotePath(safeSource)
+    ? buildEncryptedFilePath(parentPath, name)
+    : buildFilePath(parentPath, name);
   if (!relativePath) return { ok: false, error: "invalid-name" };
   if (relativePath === safeSource) {
     return { ok: false, error: "exists" };
@@ -509,6 +621,7 @@ export async function copyFileInline(
     ok: true,
     path: relativePath,
     name: path.posix.basename(relativePath),
+    isEncrypted: isEncryptedNotePath(relativePath),
   };
 }
 
@@ -520,10 +633,12 @@ export async function moveFileInline(
   const authError = await requireActionAuth();
   if (authError) return authError;
   const safeSource = normalizeRelativePath(sourcePath);
-  if (safeSource === null || !safeSource.endsWith(".md")) {
+  if (safeSource === null || !isSupportedNotePath(safeSource)) {
     return { ok: false, error: "invalid-path" };
   }
-  const relativePath = buildFilePath(parentPath, name);
+  const relativePath = isEncryptedNotePath(safeSource)
+    ? buildEncryptedFilePath(parentPath, name)
+    : buildFilePath(parentPath, name);
   if (!relativePath) return { ok: false, error: "invalid-name" };
   if (relativePath === safeSource) {
     return { ok: false, error: "exists" };
@@ -556,16 +671,19 @@ export async function moveFileInline(
     ok: true,
     path: relativePath,
     name: path.posix.basename(relativePath),
+    isEncrypted: isEncryptedNotePath(relativePath),
   };
 }
 
 export async function loadPageContent(
   relativePath: string,
-): Promise<ActionResult & { content?: string }> {
+): Promise<LoadPageResult> {
   const authError = await requireActionAuth();
-  if (authError) return authError;
+  if (authError) {
+    return { ok: false, error: authError.error };
+  }
   const safePath = normalizeRelativePath(relativePath);
-  if (safePath === null || !safePath.endsWith(".md")) {
+  if (safePath === null || !isSupportedNotePath(safePath)) {
     return { ok: false, error: "invalid-path" };
   }
 
@@ -578,7 +696,16 @@ export async function loadPageContent(
   }
 
   try {
-    const content = await readFile(filePath, "utf-8");
+    const raw = await readFile(filePath, "utf-8");
+    const isEncrypted = isEncryptedNotePath(safePath);
+    let content = raw;
+    if (isEncrypted) {
+      const vault = await requireVaultKey();
+      if (!vault.ok) {
+        return vault;
+      }
+      content = decryptNoteContent(raw, vault.key);
+    }
     let meta: { createdAt: number | null; updatedAt: number | null } = {
       createdAt: null,
       updatedAt: null,
@@ -593,6 +720,7 @@ export async function loadPageContent(
       path: safePath,
       name: path.basename(safePath),
       content,
+      isEncrypted,
       ...meta,
     };
   } catch {
@@ -607,7 +735,7 @@ export async function savePageContent(
   const authError = await requireActionAuth();
   if (authError) return authError;
   const safePath = normalizeRelativePath(relativePath);
-  if (safePath === null || !safePath.endsWith(".md")) {
+  if (safePath === null || !isSupportedNotePath(safePath)) {
     return { ok: false, error: "invalid-path" };
   }
 
@@ -620,7 +748,13 @@ export async function savePageContent(
   }
 
   try {
-    await writeFile(filePath, content, "utf-8");
+    if (isEncryptedNotePath(safePath)) {
+      const vault = await requireVaultKey();
+      if (!vault.ok) return vault;
+      await writeFile(filePath, encryptNoteContent(content, vault.key), "utf-8");
+    } else {
+      await writeFile(filePath, content, "utf-8");
+    }
   } catch {
     return { ok: false, error: "write-failed" };
   }
@@ -634,7 +768,13 @@ export async function savePageContent(
   } catch {
     // Best-effort metadata.
   }
-  return { ok: true, path: safePath, name: path.basename(safePath), ...meta };
+  return {
+    ok: true,
+    path: safePath,
+    name: path.basename(safePath),
+    isEncrypted: isEncryptedNotePath(safePath),
+    ...meta,
+  };
 }
 
 export async function searchPages(

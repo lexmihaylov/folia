@@ -41,8 +41,13 @@ export default function EditorPane({
     <>
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate text-sm font-semibold text-foreground hidden sm:flex">
+          <span className="truncate text-sm font-semibold text-foreground hidden items-center gap-2 sm:flex">
             {selectedFile.name}
+            {selectedFile.isEncrypted ? (
+              <span className="rounded-md border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-muted">
+                Encrypted
+              </span>
+            ) : null}
           </span>
           <div className="flex flex-wrap gap-3 text-[11px] text-muted hidden sm:flex">
             <span>Created {formatTimestamp(fileMeta?.createdAt)}</span>

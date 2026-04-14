@@ -1,6 +1,6 @@
 export type DraftState = {
   parentPath: string;
-  type: "folder" | "file";
+  type: "folder" | "file" | "encryptedFile";
   name: string;
 };
 
@@ -13,6 +13,7 @@ export type RenameState = {
 export type SelectedFile = {
   path: string;
   name: string;
+  isEncrypted?: boolean;
 };
 
 export type FileMeta = {
@@ -25,4 +26,9 @@ export type ClipboardState = {
   name: string;
   type: "folder" | "file";
   mode: "copy" | "cut";
+};
+
+export type VaultState = {
+  hasVault: boolean;
+  isUnlocked: boolean;
 };

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { requireAuth } from "@/lib/auth/guard";
 import { changelog } from "@/lib/changelog";
@@ -81,12 +82,12 @@ export default async function ChangelogPage() {
                 About &amp; Changelog
               </h1>
             </div>
-            <a
+            <Link
               href="/"
               className="rounded-md border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted hover:bg-surface-strong"
             >
               Back to library
-            </a>
+            </Link>
           </div>
         </header>
         <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-6 py-10 sm:px-10">
