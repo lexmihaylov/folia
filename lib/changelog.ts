@@ -15,22 +15,23 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "0.2.0",
     date: "2026-04-14",
-    summary: "Minor release with no user-facing changes.",
+    summary: "Encrypted notes and vault-based secret storage.",
     sections: [
       {
-        title: "Changed",
-        items: ["No user-facing changes since v0.1.7."],
+        title: "Added",
+        items: [
+          "Encrypted `.emd` notes for storing secrets and keys.",
+          "A vault passphrase flow for creating, unlocking, and locking encrypted notes.",
+          "An in-app vault dialog instead of browser prompts for vault actions.",
+        ],
       },
-    ],
-  },
-  {
-    version: "1.0.0",
-    date: "2026-04-14",
-    summary: "Major release with no user-facing changes.",
-    sections: [
       {
         title: "Changed",
-        items: ["No user-facing changes since v0.1.7."],
+        items: [
+          "Library routing and file actions now support both plain `.md` and encrypted `.emd` notes.",
+          "Encrypted notes are excluded from plaintext search results.",
+          "Release scripts now use an explicit versioning workflow without fragile `%s` placeholders.",
+        ],
       },
     ],
   },

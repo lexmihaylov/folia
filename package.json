@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "release:package": "node scripts/release-package.js",
-    "release:minor": "node scripts/update-changelog.js minor && npm version minor -m \"chore(release): %s\" && git push && git push --tags",
-    "release:major": "node scripts/update-changelog.js major && npm version major -m \"chore(release): %s\" && git push && git push --tags",
-    "release:patch": "node scripts/update-changelog.js patch && npm version patch -m \"chore(release): %s\" && git push && git push --tags"
+    "release:minor": "node scripts/release-version.js minor",
+    "release:major": "node scripts/release-version.js major",
+    "release:patch": "node scripts/release-version.js patch"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
