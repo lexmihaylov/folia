@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import type { LibrarySnapshot, TreeNode } from "@/lib/fs/library";
@@ -72,6 +72,7 @@ export default function LibraryClient({
   initialVaultState,
 }: LibraryClientProps) {
   const router = useRouter();
+  const latestLoadIdRef = useRef(0);
   const [tree, setTree] = useState<TreeNode>(snapshot.tree);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [draftError, setDraftError] = useState("");
@@ -285,6 +286,43 @@ export default function LibraryClient({
     }
   };
 
+  const loadSelectedFile = useCallback(async (path: string) => {
+    const loadId = ++latestLoadIdRef.current;
+    const result = await loadPageContent(path);
+    if (loadId !== latestLoadIdRef.current) {
+      return;
+    }
+    if (!result.ok) {
+      if (
+        result.error === "vault-locked" ||
+        result.error === "vault-unconfigured"
+      ) {
+        setSaveStatus(
+          result.error === "vault-unconfigured"
+            ? "Create a vault to open encrypted notes"
+            : "Unlock the vault to open this note",
+        );
+        await refreshVaultState();
+      }
+      return;
+    }
+
+    if (typeof result.content === "string") {
+      setContent(result.content);
+      setLastSavedContent(result.content);
+      setFileMeta({
+        createdAt: result.createdAt ?? null,
+        updatedAt: result.updatedAt ?? null,
+      });
+      setSelectedFile({
+        path: result.path,
+        name: result.name,
+        isEncrypted: result.isEncrypted,
+      });
+      setSaveStatus("");
+    }
+  }, [refreshVaultState]);
+
   const selectFile = (path: string, name: string) => {
     const isEncrypted = isEncryptedNotePath(path);
     setSelectedFile({ path, name, isEncrypted });
@@ -294,37 +332,7 @@ export default function LibraryClient({
     setFileMeta(null);
     setIsEditing(false);
     router.push(routeForPath(path));
-    startBackgroundTransition(async () => {
-      const result = await loadPageContent(path);
-      if (!result.ok) {
-        if (
-          result.error === "vault-locked" ||
-          result.error === "vault-unconfigured"
-        ) {
-          setSaveStatus(
-            result.error === "vault-unconfigured"
-              ? "Create a vault to open encrypted notes"
-              : "Unlock the vault to open this note",
-          );
-          await refreshVaultState();
-        }
-        return;
-      }
-
-      if (typeof result.content === "string") {
-        setContent(result.content);
-        setLastSavedContent(result.content);
-        setFileMeta({
-          createdAt: result.createdAt ?? null,
-          updatedAt: result.updatedAt ?? null,
-        });
-        setSelectedFile({
-          path: result.path,
-          name: result.name,
-          isEncrypted: result.isEncrypted,
-        });
-      }
-    });
+    void loadSelectedFile(path);
   };
 
   const startDraft = (
@@ -584,7 +592,7 @@ export default function LibraryClient({
     }
     await refreshVaultState();
     if (selectedFile?.isEncrypted) {
-      selectFile(selectedFile.path, selectedFile.name);
+      await loadSelectedFile(selectedFile.path);
     }
     return { ok: true };
   };
@@ -596,7 +604,7 @@ export default function LibraryClient({
     }
     await refreshVaultState();
     if (selectedFile?.isEncrypted) {
-      selectFile(selectedFile.path, selectedFile.name);
+      await loadSelectedFile(selectedFile.path);
     }
     return { ok: true };
   };

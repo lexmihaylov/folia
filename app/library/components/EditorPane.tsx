@@ -78,6 +78,7 @@ export default function EditorPane({
       </div>
       <div className="mt-4 flex-1 min-h-0 overflow-hidden bg-surface sm:mt-6">
         <MDEditor
+          key={`${selectedFile.path}:${selectedFile.isEncrypted ? "encrypted" : "plain"}:${isEditing ? "edit" : "preview"}:${content.length}`}
           value={content}
           onChange={(next) => onContentChange(next ?? "")}
           data-color-mode={theme}
