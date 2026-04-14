@@ -13,6 +13,17 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.2.1",
+    date: "2026-04-14",
+    summary: "Patch release with no user-facing changes.",
+    sections: [
+      {
+        title: "Changed",
+        items: ["No user-facing changes since v0.2.0."],
+      },
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-04-14",
     summary: "Encrypted notes and vault-based secret storage.",
