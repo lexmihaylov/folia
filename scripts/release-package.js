@@ -56,6 +56,7 @@ async function main() {
 
   await removeIfExists(path.join(bundleDir, "knowledgebase"));
   await removeIfExists(path.join(bundleDir, "credentials.json"));
+  await removeIfExists(path.join(bundleDir, "vault.json"));
 
   if (!hasTar()) {
     throw new Error("tar not found in PATH. Install tar to create the release archive.");

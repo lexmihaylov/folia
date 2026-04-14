@@ -86,7 +86,7 @@ FOLIA_COOKIE_SECURE=false
 ```
 
 This pulls the latest release and preserves `folia.config.json` and
-`credentials.json`.
+`credentials.json`, plus `vault.json` for encrypted note access.
 
 ### Manual run from a release bundle
 

@@ -41,6 +41,9 @@ fi
 if [[ -f "${INSTALL_DIR}/credentials.json" ]]; then
   cp "${INSTALL_DIR}/credentials.json" "$TMP_DIR/credentials.json"
 fi
+if [[ -f "${INSTALL_DIR}/vault.json" ]]; then
+  cp "${INSTALL_DIR}/vault.json" "$TMP_DIR/vault.json"
+fi
 
 echo "Installing release to ${INSTALL_DIR}..."
 sudo rm -rf "${INSTALL_DIR:?}"/*
@@ -54,6 +57,10 @@ fi
 if [[ -f "$TMP_DIR/credentials.json" ]]; then
   sudo cp "$TMP_DIR/credentials.json" "${INSTALL_DIR}/credentials.json"
   sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}/credentials.json"
+fi
+if [[ -f "$TMP_DIR/vault.json" ]]; then
+  sudo cp "$TMP_DIR/vault.json" "${INSTALL_DIR}/vault.json"
+  sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}/vault.json"
 fi
 
 echo "Restarting service ${SERVICE}..."

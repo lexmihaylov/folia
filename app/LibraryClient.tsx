@@ -92,6 +92,7 @@ export default function LibraryClient({
   const [isEditing, setIsEditing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isTreePending, setIsTreePending] = useState(false);
   const [saveStatus, setSaveStatus] = useState(
     initialSelectedFile?.isEncrypted && !initialVaultState.isUnlocked
       ? initialVaultState.hasVault
@@ -181,6 +182,7 @@ export default function LibraryClient({
     }
 
     let desiredName = item.name;
+    setIsTreePending(true);
     while (true) {
       const result =
         item.type === "folder"
@@ -247,6 +249,7 @@ export default function LibraryClient({
             }
           }
         }
+        setIsTreePending(false);
         return;
       }
 
@@ -256,20 +259,26 @@ export default function LibraryClient({
             ? "A folder with that name exists. Enter a new folder name:"
             : "A file with that name exists. Enter a new file name:";
         const nextName = window.prompt(promptLabel, desiredName);
-        if (!nextName) return;
+        if (!nextName) {
+          setIsTreePending(false);
+          return;
+        }
         desiredName = nextName;
         continue;
       }
 
       if (result.error === "invalid-name") {
+        setIsTreePending(false);
         window.alert("Name must be a single folder or file segment.");
         return;
       }
       if (result.error === "unauthorized") {
+        setIsTreePending(false);
         window.alert("Session expired. Please sign in again.");
         return;
       }
 
+      setIsTreePending(false);
       window.alert("Unable to paste the item.");
       return;
     }
@@ -351,12 +360,14 @@ export default function LibraryClient({
   const confirmDraft = () => {
     if (!draft) return;
     setDraftError("");
+    setIsTreePending(true);
 
     startTransition(async () => {
       if (draft.type === "folder") {
         const result = await createFolderInline(draft.parentPath, draft.name);
         if (!result.ok) {
           setDraftError(result.error);
+          setIsTreePending(false);
           return;
         }
         const node: TreeNode = {
@@ -367,6 +378,7 @@ export default function LibraryClient({
         };
         setTree((prev) => insertNode(prev, draft.parentPath, node));
         setDraft(null);
+        setIsTreePending(false);
         return;
       }
 
@@ -382,6 +394,7 @@ export default function LibraryClient({
         ) {
           await refreshVaultState();
         }
+        setIsTreePending(false);
         return;
       }
       const node: TreeNode = {
@@ -405,12 +418,14 @@ export default function LibraryClient({
       setLastSavedContent("");
       setIsEditing(true);
       router.push(routeForPath(result.path));
+      setIsTreePending(false);
     });
   };
 
   const confirmRename = () => {
     if (!renameState) return;
     setRenameError("");
+    setIsTreePending(true);
     startTransition(async () => {
       const result =
         renameState.type === "folder"
@@ -418,6 +433,7 @@ export default function LibraryClient({
           : await renameFileInline(renameState.path, renameState.name);
       if (!result.ok) {
         setRenameError(result.error);
+        setIsTreePending(false);
         return;
       }
       const oldPath = renameState.path;
@@ -446,12 +462,14 @@ export default function LibraryClient({
         }
       }
       setRenameState(null);
+      setIsTreePending(false);
     });
   };
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
     setDeleteError("");
+    setIsTreePending(true);
     startTransition(async () => {
       const result =
         deleteTarget.type === "folder"
@@ -459,6 +477,7 @@ export default function LibraryClient({
           : await deleteFileInline(deleteTarget.path);
       if (!result.ok) {
         setDeleteError(result.error);
+        setIsTreePending(false);
         return;
       }
       setTree((prev) => removeNode(prev, deleteTarget.path));
@@ -477,6 +496,7 @@ export default function LibraryClient({
         router.push("/");
       }
       setDeleteTarget(null);
+      setIsTreePending(false);
     });
   };
 
@@ -703,7 +723,7 @@ export default function LibraryClient({
               selectedFile,
               rootMissing,
               shouldExpandAll,
-              isPending,
+              isPending: isTreePending,
               draftErrorMessage,
               renameErrorMessage,
               deleteErrorMessage,

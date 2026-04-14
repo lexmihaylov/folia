@@ -17,6 +17,7 @@ import { promisify } from "node:util";
 
 import { getFoliaConfig } from "@/lib/config";
 import { isAuthenticated } from "@/lib/auth/guard";
+import { invalidateLibrarySnapshot } from "@/lib/fs/library";
 import {
   decryptNoteContent,
   encryptNoteContent,
@@ -211,6 +212,7 @@ export async function createFolderInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return {
     ok: true,
@@ -258,6 +260,7 @@ export async function renameFolderInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return { ok: true, path: nextPath, name: segment };
 }
@@ -309,6 +312,7 @@ export async function renameFileInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return { ok: true, path: nextPath, name: nextFile, isEncrypted };
 }
@@ -336,6 +340,7 @@ export async function deleteFolderInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return { ok: true, path: safeTarget, name: path.basename(safeTarget) };
 }
@@ -363,6 +368,7 @@ export async function deleteFileInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return { ok: true, path: safeTarget, name: path.basename(safeTarget) };
 }
@@ -391,6 +397,7 @@ export async function createPageInline(
     if (err.code === "EEXIST") return { ok: false, error: "exists" };
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   let meta: { createdAt: number | null; updatedAt: number | null } = {
     createdAt: null,
@@ -437,6 +444,7 @@ export async function createEncryptedPageInline(
     if (err.code === "EEXIST") return { ok: false, error: "exists" };
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   let meta: { createdAt: number | null; updatedAt: number | null } = {
     createdAt: null,
@@ -508,6 +516,7 @@ export async function copyFolderInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return {
     ok: true,
@@ -558,6 +567,7 @@ export async function moveFolderInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return {
     ok: true,
@@ -616,6 +626,7 @@ export async function copyFileInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return {
     ok: true,
@@ -666,6 +677,7 @@ export async function moveFileInline(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   return {
     ok: true,
@@ -758,6 +770,7 @@ export async function savePageContent(
   } catch {
     return { ok: false, error: "write-failed" };
   }
+  invalidateLibrarySnapshot();
 
   let meta: { createdAt: number | null; updatedAt: number | null } = {
     createdAt: null,

@@ -43,6 +43,10 @@ let watcher: FSWatcher | null = null;
 let watcherRoot: string | null = null;
 let watchSupported = true;
 
+export function invalidateLibrarySnapshot() {
+  cache = null;
+}
+
 function toPosix(input: string): string {
   return input.split(path.sep).join(path.posix.sep);
 }
