@@ -13,6 +13,17 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.2.7",
+    date: "2026-04-14",
+    summary: "Patch release with a date-related hydration fix.",
+    sections: [
+      {
+        title: "Fixed",
+        items: ["Fixed a hydration error triggered by date rendering."],
+      },
+    ],
+  },
+  {
     version: "0.2.6",
     date: "2026-04-14",
     summary: "Patch release with a save button state fix.",
