@@ -13,6 +13,17 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.2.6",
+    date: "2026-04-14",
+    summary: "Patch release with a save button state fix.",
+    sections: [
+      {
+        title: "Fixed",
+        items: ["Fixed the Save button state so it updates correctly while editing notes."],
+      },
+    ],
+  },
+  {
     version: "0.2.5",
     date: "2026-04-14",
     summary: "Patch release with a vault save state fix.",
