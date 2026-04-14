@@ -13,6 +13,17 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.2.8",
+    date: "2026-04-14",
+    summary: "Patch release with a vault state sync fix.",
+    sections: [
+      {
+        title: "Fixed",
+        items: ["Fixed stale app state after locking and unlocking the vault."],
+      },
+    ],
+  },
+  {
     version: "0.2.7",
     date: "2026-04-14",
     summary: "Patch release with a date-related hydration fix.",
