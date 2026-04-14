@@ -162,7 +162,7 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
                       />
                     </span>
                     <span
-                      className={`${isFolder ? "font-semibold" : ""} break-words`}
+                      className={`${isFolder ? "font-semibold" : ""} wrap-break-word`}
                     >
                       {child.name}
                     </span>
@@ -482,7 +482,7 @@ export default function LibraryTree({ state, handlers }: LibraryTreeProps) {
             <span className="text-xs text-muted">
               <FontAwesomeIcon icon={faFolder} />
             </span>
-            <span className="break-words font-semibold">{node.name}</span>
+            <span className="wrap-break-word font-semibold">{node.name}</span>
             <div className="ml-auto flex items-center gap-1">
               <div className="relative">
                 <button

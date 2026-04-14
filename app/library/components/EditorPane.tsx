@@ -49,7 +49,7 @@ export default function EditorPane({
               </span>
             ) : null}
           </span>
-          <div className="flex flex-wrap gap-3 text-[11px] text-muted hidden sm:flex">
+          <div className="flex-wrap gap-3 text-[11px] text-muted hidden sm:flex">
             <span>Created {formatTimestamp(fileMeta?.createdAt)}</span>
             <span>Updated {formatTimestamp(fileMeta?.updatedAt)}</span>
           </div>

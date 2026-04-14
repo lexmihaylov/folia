@@ -46,7 +46,7 @@ export default function LibrarySidebar({
         />
       ) : null}
       <aside
-        className={`panel fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-full max-w-[380px] flex-col rounded-none p-4 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:max-w-none lg:translate-x-0 lg:rounded-xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`panel fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-full max-w-95 flex-col rounded-none p-4 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:max-w-none lg:translate-x-0 lg:rounded-xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         <div className="flex items-center justify-between gap-3 lg:hidden">

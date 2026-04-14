@@ -91,7 +91,8 @@ export default function LibraryClient({
   const [lastSavedContent, setLastSavedContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isEditorPending, startEditorTransition] = useTransition();
+  const [, startBackgroundTransition] = useTransition();
   const [isTreePending, setIsTreePending] = useState(false);
   const [saveStatus, setSaveStatus] = useState(
     initialSelectedFile?.isEncrypted && !initialVaultState.isUnlocked
@@ -293,7 +294,7 @@ export default function LibraryClient({
     setFileMeta(null);
     setIsEditing(false);
     router.push(routeForPath(path));
-    startTransition(async () => {
+    startBackgroundTransition(async () => {
       const result = await loadPageContent(path);
       if (!result.ok) {
         if (
@@ -362,7 +363,7 @@ export default function LibraryClient({
     setDraftError("");
     setIsTreePending(true);
 
-    startTransition(async () => {
+    startBackgroundTransition(async () => {
       if (draft.type === "folder") {
         const result = await createFolderInline(draft.parentPath, draft.name);
         if (!result.ok) {
@@ -426,7 +427,7 @@ export default function LibraryClient({
     if (!renameState) return;
     setRenameError("");
     setIsTreePending(true);
-    startTransition(async () => {
+    startBackgroundTransition(async () => {
       const result =
         renameState.type === "folder"
           ? await renameFolderInline(renameState.path, renameState.name)
@@ -470,7 +471,7 @@ export default function LibraryClient({
     if (!deleteTarget) return;
     setDeleteError("");
     setIsTreePending(true);
-    startTransition(async () => {
+    startBackgroundTransition(async () => {
       const result =
         deleteTarget.type === "folder"
           ? await deleteFolderInline(deleteTarget.path)
@@ -522,7 +523,7 @@ export default function LibraryClient({
     if (!selectedFile || !hasUnsavedChanges) return hasUnsavedChanges === false;
     setSaveStatus("Saving...");
     return new Promise<boolean>((resolve) => {
-      startTransition(async () => {
+      startEditorTransition(async () => {
         const result = await savePageContent(selectedFile.path, content);
         if (result.ok) {
           setSaveStatus("Saved");
@@ -756,7 +757,7 @@ export default function LibraryClient({
                 fileMeta={fileMeta}
                 saveStatus={displayedSaveStatus}
                 isEditing={isEditing}
-                isPending={isPending}
+                isPending={isEditorPending}
                 theme={theme}
                 content={content}
                 onToggleEdit={handleToggleEdit}
