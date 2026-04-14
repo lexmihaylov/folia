@@ -758,6 +758,7 @@ export default function LibraryClient({
                 saveStatus={displayedSaveStatus}
                 isEditing={isEditing}
                 isPending={isEditorPending}
+                hasUnsavedChanges={hasUnsavedChanges}
                 theme={theme}
                 content={content}
                 onToggleEdit={handleToggleEdit}

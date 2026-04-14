@@ -10,6 +10,7 @@ type EditorPaneProps = {
   saveStatus: string;
   isEditing: boolean;
   isPending: boolean;
+  hasUnsavedChanges: boolean;
   theme: "light" | "dark";
   content: string;
   onToggleEdit: () => void;
@@ -31,6 +32,7 @@ export default function EditorPane({
   saveStatus,
   isEditing,
   isPending,
+  hasUnsavedChanges,
   theme,
   content,
   onToggleEdit,
@@ -67,7 +69,7 @@ export default function EditorPane({
             <button
               type="button"
               onClick={onSave}
-              disabled={isPending}
+              disabled={isPending || !hasUnsavedChanges}
               className="rounded-md border border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground hover:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-60"
             >
               Save
