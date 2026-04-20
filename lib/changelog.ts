@@ -13,6 +13,17 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.2.11",
+    date: "2026-04-20",
+    summary: "Patch release with page refresh and routing improvements.",
+    sections: [
+      {
+        title: "Improved",
+        items: ["Improved page refresh and routing behavior for smoother navigation."],
+      },
+    ],
+  },
+  {
     version: "0.2.10",
     date: "2026-04-14",
     summary: "Patch release with a dedicated locked-files screen.",
