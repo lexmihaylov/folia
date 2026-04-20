@@ -1,12 +1,11 @@
 import { cookies } from "next/headers";
 
 import { getLibrarySnapshot } from "@/lib/fs/library";
-import LibraryClient from "@/app/LibraryClient";
 import { getAuthenticatedUsername, requireAuth } from "@/lib/auth/guard";
 import { readUserData } from "@/lib/auth/user-data";
 import { getVaultStateAction } from "@/app/auth/actions";
 
-export default async function Home() {
+export async function getSharedLibraryPageData() {
   await requireAuth();
   const username = await getAuthenticatedUsername();
   const userData = username ? await readUserData(username) : {};
@@ -19,14 +18,15 @@ export default async function Home() {
   const initialCollapsed = Array.isArray(userData.collapsed)
     ? userData.collapsed.filter((item) => typeof item === "string")
     : [];
-  const snapshot = await getLibrarySnapshot();
-  const vaultState = await getVaultStateAction();
-  return (
-    <LibraryClient
-      snapshot={snapshot}
-      initialCollapsed={initialCollapsed}
-      initialTheme={initialTheme}
-      initialVaultState={vaultState}
-    />
-  );
+  const [snapshot, vaultState] = await Promise.all([
+    getLibrarySnapshot(),
+    getVaultStateAction(),
+  ]);
+
+  return {
+    initialTheme,
+    initialCollapsed,
+    snapshot,
+    vaultState,
+  };
 }

@@ -1,38 +1,36 @@
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
-import { getLibrarySnapshot } from "@/lib/fs/library";
 import { loadPageContent } from "@/app/library/actions";
 import LibraryClient from "@/app/LibraryClient";
-import { getVaultStateAction } from "@/app/auth/actions";
-import { getAuthenticatedUsername, requireAuth } from "@/lib/auth/guard";
-import { readUserData } from "@/lib/auth/user-data";
-import { notePathCandidates } from "@/lib/encrypted-note";
+import { getSharedLibraryPageData } from "@/app/library/server/page-data";
 import { getFoliaConfig } from "@/lib/config";
+import { notePathCandidates } from "@/lib/encrypted-note";
 
-type DocumentPageProps = {
+type LibraryPageProps = {
   params: Promise<{
     slug?: string[];
   }>;
 };
 
-export default async function DocumentPage({ params }: DocumentPageProps) {
-  await requireAuth();
-  const username = await getAuthenticatedUsername();
-  const userData = username ? await readUserData(username) : {};
-  const cookieStore = await cookies();
-  const cookieTheme = cookieStore.get("folia-theme")?.value;
-  const initialTheme =
-    cookieTheme === "light" || cookieTheme === "dark"
-      ? cookieTheme
-      : userData.theme ?? null;
-  const initialCollapsed = Array.isArray(userData.collapsed)
-    ? userData.collapsed.filter((item) => typeof item === "string")
-    : [];
+export default async function LibraryPage({ params }: LibraryPageProps) {
+  const { initialTheme, initialCollapsed, snapshot, vaultState } =
+    await getSharedLibraryPageData();
   const resolvedParams = await params;
   const slug = resolvedParams.slug ?? [];
+
+  if (slug.length === 0) {
+    return (
+      <LibraryClient
+        snapshot={snapshot}
+        initialCollapsed={initialCollapsed}
+        initialTheme={initialTheme}
+        initialVaultState={vaultState}
+      />
+    );
+  }
+
   const decodedSlug = slug.map((segment) => {
     try {
       return decodeURIComponent(segment);
@@ -54,11 +52,7 @@ export default async function DocumentPage({ params }: DocumentPageProps) {
     }
   }
 
-  const [snapshot, result, vaultState] = await Promise.all([
-    getLibrarySnapshot(),
-    loadPageContent(relativePath),
-    getVaultStateAction(),
-  ]);
+  const result = await loadPageContent(relativePath);
   if (
     !result.ok &&
     result.error !== "vault-locked" &&

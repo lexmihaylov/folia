@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 
 import type { LibrarySnapshot, TreeNode } from "@/lib/fs/library";
 import {
@@ -72,7 +71,6 @@ export default function LibraryClient({
   initialTheme = null,
   initialVaultState,
 }: LibraryClientProps) {
-  const router = useRouter();
   const latestLoadIdRef = useRef(0);
   const [tree, setTree] = useState<TreeNode>(snapshot.tree);
   const [draft, setDraft] = useState<DraftState | null>(null);
@@ -132,7 +130,7 @@ export default function LibraryClient({
     submittedQuery.trim() === "" || (filteredTree.children?.length ?? 0) > 0;
   const shouldExpandAll = submittedQuery.trim() !== "";
 
-  const routeForPath = (path: string) => {
+  const routeForPath = useCallback((path: string) => {
     const normalized = path.replace(/^\//, "");
     const trimmed = stripNoteExtension(normalized);
     const encoded = trimmed
@@ -140,7 +138,16 @@ export default function LibraryClient({
       .map((segment) => encodeURIComponent(segment))
       .join("/");
     return `/${encoded}`;
-  };
+  }, []);
+
+  const pushRoute = useCallback(
+    (path: string | null) => {
+      const nextRoute = path ? routeForPath(path) : "/";
+      if (window.location.pathname === nextRoute) return;
+      window.history.pushState(null, "", nextRoute);
+    },
+    [routeForPath],
+  );
 
   const toggleFolder = (path: string) => {
     if (shouldExpandAll) return;
@@ -243,7 +250,7 @@ export default function LibraryClient({
                 isEncrypted: result.isEncrypted,
               };
               setSelectedFile(nextSelected);
-              router.push(routeForPath(result.path));
+              pushRoute(result.path);
             } else if (
               item.type === "folder" &&
               selectedFile.path.startsWith(item.path + "/")
@@ -256,10 +263,10 @@ export default function LibraryClient({
                 name: nextName,
                 isEncrypted: isEncryptedNotePath(nextPath),
               });
-              router.push(routeForPath(nextPath));
+              pushRoute(nextPath);
+            }
             }
           }
-        }
         setIsTreePending(false);
         return;
       }
@@ -337,21 +344,23 @@ export default function LibraryClient({
     }
   }, []);
 
-  const selectFile = (path: string, name: string) => {
+  const selectFile = useCallback((path: string, name: string, updateRoute = true) => {
     const isEncrypted = isEncryptedNotePath(path);
     setSelectedFile({ path, name, isEncrypted });
     setContent("");
     setLastSavedContent("");
     setFileMeta(null);
     setIsEditing(false);
-    router.push(routeForPath(path));
+    if (updateRoute) {
+      pushRoute(path);
+    }
     if (isEncrypted && !vaultState.isUnlocked) {
       setSaveStatus(lockedVaultMessage());
       return;
     }
     setSaveStatus("");
     void loadSelectedFile(path);
-  };
+  }, [loadSelectedFile, lockedVaultMessage, pushRoute, vaultState.isUnlocked]);
 
   const startDraft = (
     type: "folder" | "file" | "encryptedFile",
@@ -444,7 +453,7 @@ export default function LibraryClient({
       setContent("");
       setLastSavedContent("");
       setIsEditing(true);
-      router.push(routeForPath(result.path));
+      pushRoute(result.path);
       setIsTreePending(false);
     });
   };
@@ -476,7 +485,7 @@ export default function LibraryClient({
           name: result.name,
           isEncrypted: result.isEncrypted ?? isEncryptedNotePath(newPath),
         });
-        router.push(routeForPath(newPath));
+        pushRoute(newPath);
       } else if (renameState.type === "folder") {
         if (selectedFile?.path.startsWith(oldPath + "/")) {
           const nextPath = selectedFile.path.replace(oldPath, newPath);
@@ -485,7 +494,7 @@ export default function LibraryClient({
             name: selectedFile.name,
             isEncrypted: isEncryptedNotePath(nextPath),
           });
-          router.push(routeForPath(nextPath));
+          pushRoute(nextPath);
         }
       }
       setRenameState(null);
@@ -512,7 +521,7 @@ export default function LibraryClient({
         setSelectedFile(null);
         setFileMeta(null);
         setContent("");
-        router.push("/");
+        pushRoute(null);
       } else if (
         deleteTarget.type === "folder" &&
         selectedFile?.path.startsWith(deleteTarget.path + "/")
@@ -520,7 +529,7 @@ export default function LibraryClient({
         setSelectedFile(null);
         setFileMeta(null);
         setContent("");
-        router.push("/");
+        pushRoute(null);
       }
       setDeleteTarget(null);
       setIsTreePending(false);
@@ -710,6 +719,66 @@ export default function LibraryClient({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isEditing, saveFile]);
+
+  const routeToFile = useMemo(() => {
+    const entries = new Map<string, { path: string; name: string }>();
+
+    const walk = (node: TreeNode) => {
+      if (node.type === "file") {
+        const key = stripNoteExtension(node.path.replace(/^\//, ""));
+        if (!entries.has(key)) {
+          entries.set(key, { path: node.path, name: node.name });
+        }
+      }
+
+      for (const child of node.children ?? []) {
+        walk(child);
+      }
+    };
+
+    walk(tree);
+    return entries;
+  }, [tree]);
+
+  useEffect(() => {
+    const decodeRoute = (pathname: string) => {
+      const trimmed = pathname.replace(/^\/+|\/+$/g, "");
+      if (trimmed === "") return "";
+      return trimmed
+        .split("/")
+        .map((segment) => {
+          try {
+            return decodeURIComponent(segment);
+          } catch {
+            return segment;
+          }
+        })
+        .join("/");
+    };
+
+    const handlePopState = () => {
+      const routePath = decodeRoute(window.location.pathname);
+      if (routePath === "") {
+        setSelectedFile(null);
+        setFileMeta(null);
+        setContent("");
+        setLastSavedContent("");
+        setIsEditing(false);
+        setSaveStatus("");
+        return;
+      }
+
+      const target = routeToFile.get(routePath);
+      if (!target) {
+        return;
+      }
+
+      selectFile(target.path, target.name, false);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [routeToFile, selectFile]);
 
   return (
     <div className="app-shell text-[15px] text-foreground sm:text-base">
