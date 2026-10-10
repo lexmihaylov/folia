@@ -790,7 +790,7 @@ export default function LibraryClient({
         onUnlock={handleUnlockVault}
         onLock={handleLockVault}
       />
-      <main className="box-border flex min-h-[100dvh] w-full flex-col gap-4 overflow-y-auto px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6 lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden">
+      <main className="box-border flex h-[100dvh] w-full flex-col gap-4 overflow-hidden px-1 py-4 sm:gap-6 sm:px-[10px] sm:py-6">
         <LibraryHeader
           theme={theme}
           hasVault={vaultState.hasVault}
@@ -800,7 +800,7 @@ export default function LibraryClient({
           onOpenSidebar={() => setIsSidebarOpen(true)}
         />
 
-        <section className="grid flex-none gap-4 sm:gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[400px_1fr]">
+        <section className="grid flex-1 min-h-0 gap-4 sm:gap-6 lg:grid-cols-[400px_1fr]">
           <LibrarySidebar
             snapshot={snapshot}
             isSidebarOpen={isSidebarOpen}
@@ -846,7 +846,7 @@ export default function LibraryClient({
             }}
           />
 
-          <section className="panel flex min-h-0 flex-col rounded-md p-2 sm:rounded-xl sm:p-5 lg:h-full lg:overflow-hidden">
+          <section className="panel flex h-full min-h-0 flex-col overflow-hidden rounded-md p-2 sm:rounded-xl sm:p-5">
             {selectedFile ? (
               isLockedEncryptedSelection ? (
                 <LockedFilePane
@@ -869,7 +869,7 @@ export default function LibraryClient({
                 />
               )
             ) : (
-              <div className="mt-2">
+              <div className="mt-2 flex-1 min-h-0">
                 <LibraryLanding
                   isSidebarOpen={isSidebarOpen}
                   onAddFolder={() => startDraft("folder", "")}

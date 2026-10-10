@@ -110,16 +110,7 @@ export default function LibrarySidebar({
         ) : null}
 
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <LibraryTree
-            state={treeState}
-            handlers={{
-              ...treeHandlers,
-              onSelectFile: (path, name) => {
-                treeHandlers.onSelectFile(path, name);
-                onCloseSidebar();
-              },
-            }}
-          />
+          <LibraryTree state={treeState} handlers={treeHandlers} />
         </div>
       </aside>
     </>

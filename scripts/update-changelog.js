@@ -80,13 +80,13 @@ const prompt = [
   commits ? commits : "(no commits found in range)",
 ].join("\n");
 
-const result = spawnSync("codex", ["exec", prompt], {
+const result = spawnSync("pi", ["--approve", "-p", prompt], {
   cwd: rootDir,
   stdio: "inherit",
 });
 
 if (result.error) {
-  console.error("Failed to run codex:", result.error.message);
+  console.error("Failed to run pi:", result.error.message);
   process.exit(1);
 }
 
