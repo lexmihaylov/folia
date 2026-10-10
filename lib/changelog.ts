@@ -13,6 +13,20 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "0.2.14",
+    date: "2026-10-10",
+    summary: "Patch release restoring the library’s mobile layout and sidebar behavior.",
+    sections: [
+      {
+        title: "Changed",
+        items: [
+          "Restored the previous mobile library layout and sidebar behavior.",
+          "Release changelog generation now uses pi.",
+        ],
+      },
+    ],
+  },
+  {
     version: "0.2.13",
     date: "2026-10-10",
     summary: "Patch release with no user-facing changes.",
