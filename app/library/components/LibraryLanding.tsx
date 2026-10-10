@@ -17,7 +17,7 @@ export default function LibraryLanding({
   onAddEncryptedFile,
 }: LibraryLandingProps) {
   return (
-    <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-surface px-6 py-10 text-center">
+    <div className="relative flex min-h-0 flex-col items-center justify-center rounded-xl border border-border bg-surface px-6 py-10 text-center lg:h-full lg:overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
